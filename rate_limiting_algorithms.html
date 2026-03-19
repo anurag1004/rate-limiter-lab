@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rate Limiting Algorithms — Interactive Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --bg:       #0c0e14;
+  --surface:  #13161f;
+  --surface2: #1a1e2e;
+  --surface3: #212640;
+  --border:   rgba(255,255,255,0.07);
+  --border2:  rgba(255,255,255,0.13);
+  --text:     #dde1f0;
+  --text2:    #7b82a0;
+  --text3:    #454c66;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+
+  --c1: #3ddba8; --c1b: rgba(61,219,168,0.1); --c1d: #1D9E75;
+  --c2: #5b8ff9; --c2b: rgba(91,143,249,0.1); --c2d: #2f5fc9;
+  --c3: #f9a825; --c3b: rgba(249,168,37,0.1);  --c3d: #c17d0a;
+  --c4: #e879a0; --c4b: rgba(232,121,160,0.1); --c4d: #b04070;
+  --c5: #a78bfa; --c5b: rgba(167,139,250,0.1); --c5d: #6d4fc9;
+  --red: #f07070; --redb: rgba(240,112,112,0.1); --redd: #c04040;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ── TOP NAV ── */
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  flex-shrink: 0;
+}
+.topbar-brand {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 20px 14px 0;
+  border-right: 1px solid var(--border);
+  margin-right: 8px;
+}
+.topbar-brand .icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: linear-gradient(135deg, var(--c1d), var(--c2d));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+.topbar-brand h1 { font-family: var(--mono); font-size: 13px; font-weight: 600; letter-spacing: -.01em; }
+.topbar-brand p  { font-size: 10px; color: var(--text3); margin-top: 1px; }
+
+.tabs { display: flex; align-items: stretch; gap: 2px; flex: 1; padding: 8px 0; overflow-x: auto; }
+.tab {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px; font-weight: 500; font-family: var(--mono);
+  color: var(--text3);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s, color .15s;
+  border: 1px solid transparent;
+  user-select: none;
+}
+.tab:hover { background: var(--surface2); color: var(--text2); }
+.tab.active { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+.tab .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.tab-compare { margin-left: auto; }
+
+/* ── LAYOUT ── */
+.content { flex: 1; display: flex; overflow: hidden; }
+.page { display: none; width: 100%; }
+.page.active { display: flex; }
+
+.left-panel {
+  width: 360px; flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 20px;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.right-panel {
+  flex: 1;
+  background: var(--bg);
+  padding: 16px 20px;
+  overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+
+/* ── SHARED COMPONENTS ── */
+.section-label {
+  font-family: var(--mono);
+  font-size: 9px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .12em;
+  color: var(--text3); margin-bottom: 10px;
+}
+
+.config-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 9px; font-size: 12px;
+}
+.config-row label { color: var(--text2); width: 165px; flex-shrink: 0; font-family: var(--mono); font-size: 11px; }
+.config-row input[type=range] {
+  flex: 1; -webkit-appearance: none;
+  height: 3px; border-radius: 2px;
+  outline: none; cursor: pointer;
+}
+.config-row input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 13px; height: 13px;
+  border-radius: 50%; cursor: pointer; transition: transform .15s;
+}
+.config-row input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+.config-row .val { min-width: 26px; text-align: right; font-weight: 600; font-family: var(--mono); font-size: 12px; }
+
+.vis-box {
+  border: 1px solid var(--border2);
+  border-radius: 10px; padding: 14px;
+  background: var(--surface2);
+}
+
+.tokens-wrap { display: flex; flex-wrap: wrap; gap: 7px; min-height: 36px; }
+.tok {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 600; font-family: var(--mono);
+  transition: all .25s;
+}
+.tok.on  { border: 1.5px solid; }
+.tok.off { background: transparent; border: 1px solid var(--border2); color: var(--text3); }
+@keyframes tdrop { from{transform:translateY(-16px);opacity:0} to{transform:translateY(0);opacity:1} }
+.tok.adding { animation: tdrop .3s ease; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+.shake { animation: shake .35s ease; }
+
+.track { height: 4px; border-radius: 2px; background: var(--surface3); overflow: hidden; margin-top: 8px; }
+.fill  { height: 100%; border-radius: 2px; transition: width .25s ease, background .3s; }
+
+.btn-row { display: flex; gap: 7px; }
+.btn {
+  flex: 1; padding: 8px 4px; font-size: 11px; font-weight: 600;
+  font-family: var(--mono); border-radius: 6px;
+  border: 1px solid var(--border2); background: var(--surface2);
+  color: var(--text2); cursor: pointer;
+  transition: background .15s, color .15s, transform .1s;
+}
+.btn:hover { background: var(--surface3); color: var(--text); }
+.btn:active { transform: scale(.97); }
+
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
+.stat-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 9px 6px; text-align: center;
+}
+.sv { font-size: 20px; font-weight: 700; font-family: var(--mono); line-height: 1; }
+.sl { font-size: 9px; color: var(--text3); margin-top: 3px; text-transform: uppercase; letter-spacing: .08em; }
+
+.info-box {
+  border-radius: 8px; padding: 11px;
+  font-size: 11px; line-height: 1.6; color: var(--text2);
+  border: 1px solid;
+}
+.info-box strong { font-weight: 600; }
+
+/* ── LOG ── */
+.log-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.log-hdr h2 { font-family: var(--mono); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--text3); }
+.log-clear { font-family: var(--mono); font-size: 10px; color: var(--text3); background: none; border: none; cursor: pointer; padding: 2px 8px; border-radius: 4px; transition: color .15s; }
+.log-clear:hover { color: var(--text2); }
+.log-entries { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.le {
+  display: flex; align-items: center; gap: 9px;
+  padding: 5px 9px; border-radius: 5px; border: 1px solid transparent;
+  font-family: var(--mono); font-size: 11px;
+}
+@keyframes lslide { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:translateX(0)} }
+.le { animation: lslide .18s ease; }
+.le:hover { background: var(--surface2); }
+.lt { color: var(--text3); font-size: 10px; min-width: 66px; }
+.lb {
+  font-size: 8px; font-weight: 700; letter-spacing: .08em;
+  padding: 2px 6px; border-radius: 3px; min-width: 44px; text-align: center;
+  border: 1px solid;
+}
+.lm { color: var(--text2); flex: 1; font-size: 11px; }
+.lx { color: var(--text3); font-size: 10px; }
+.empty-log { color: var(--text3); font-family: var(--mono); font-size: 12px; text-align: center; margin-top: 48px; }
+
+/* ── PROGRESS BAR RING ── */
+.ring-wrap { position: relative; width: 100px; height: 100px; margin: 0 auto; }
+.ring-wrap svg { transform: rotate(-90deg); }
+.ring-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring-num { font-family: var(--mono); font-size: 20px; font-weight: 700; line-height: 1; }
+.ring-sub { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; margin-top: 3px; }
+
+/* ── TIMELINE ── */
+.timeline-wrap { position: relative; height: 44px; border-radius: 8px; background: var(--surface3); overflow: hidden; }
+.tl-highlight { position: absolute; top: 0; bottom: 0; transition: left .1s linear, width .1s linear; }
+.tl-label { position: absolute; font-family: var(--mono); font-size: 9px; color: var(--text3); }
+.tl-dot { position: absolute; width: 9px; height: 9px; border-radius: 50%; top: 50%; transform: translateY(-50%); }
+
+/* ── QUEUE DOTS ── */
+.qdot { width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; font-family: var(--mono); margin: 2px; }
+
+/* ── FORMULA BOX ── */
+.formula { background: var(--surface3); border-radius: 7px; padding: 9px 12px; font-family: var(--mono); font-size: 11px; line-height: 1.8; }
+.formula .dim { color: var(--text3); }
+.formula .hi  { font-weight: 600; }
+
+/* ── WINDOW VIZ ── */
+.win-block {
+  height: 28px; border-radius: 5px; position: relative;
+  overflow: hidden; border: 1px solid var(--border2);
+  margin-bottom: 5px;
+}
+.win-fill { height: 100%; border-radius: 4px; transition: width .3s ease, background .3s; }
+.win-label { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-family: var(--mono); font-size: 10px; color: var(--text2); }
+
+/* ── COMPARE PAGE ── */
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px; padding: 20px;
+}
+.ccard {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 12px; padding: 18px;
+}
+.ccard-hdr { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.ccard-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.ccard-name { font-family: var(--mono); font-size: 13px; font-weight: 600; }
+.ccard-sub  { font-size: 10px; color: var(--text3); margin-top: 1px; }
+.ccard-row  { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 11px; }
+.ccard-row:last-child { border-bottom: none; }
+.ccard-key  { color: var(--text3); font-family: var(--mono); font-size: 10px; }
+.ccard-pill { font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 10px; border: 1px solid; letter-spacing: .04em; }
+.pill-g { background: rgba(61,219,168,.1);  color: var(--c1); border-color: rgba(61,219,168,.25); }
+.pill-r { background: var(--redb);          color: var(--red); border-color: rgba(240,112,112,.25); }
+.pill-y { background: rgba(249,168,37,.1);  color: var(--c3); border-color: rgba(249,168,37,.25); }
+.pill-b { background: rgba(91,143,249,.1);  color: var(--c2); border-color: rgba(91,143,249,.25); }
+.stars { display: flex; gap: 2px; }
+.star { width: 8px; height: 8px; border-radius: 50%; }
+.pros-cons { margin-top: 12px; display: flex; flex-direction: column; gap: 4px; }
+.pro { font-size: 10px; color: var(--c1); }
+.con { font-size: 10px; color: var(--red); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+
+/* ── PER-ALGO ACCENTS ── */
+.a1 input[type=range] { background: rgba(61,219,168,.2); }
+.a1 input[type=range]::-webkit-slider-thumb { background: var(--c1); }
+.a1 .val, .a1 .sv.main { color: var(--c1); }
+.a1 .btn.primary { background: var(--c1b); color: var(--c1); border-color: rgba(61,219,168,.3); }
+.a1 .info-box { background: var(--c1b); border-color: rgba(61,219,168,.2); }
+.a1 .info-box strong { color: var(--c1); }
+
+.a2 input[type=range] { background: rgba(91,143,249,.2); }
+.a2 input[type=range]::-webkit-slider-thumb { background: var(--c2); }
+.a2 .val, .a2 .sv.main { color: var(--c2); }
+.a2 .btn.primary { background: var(--c2b); color: var(--c2); border-color: rgba(91,143,249,.3); }
+.a2 .info-box { background: var(--c2b); border-color: rgba(91,143,249,.2); }
+.a2 .info-box strong { color: var(--c2); }
+
+.a3 input[type=range] { background: rgba(249,168,37,.2); }
+.a3 input[type=range]::-webkit-slider-thumb { background: var(--c3); }
+.a3 .val, .a3 .sv.main { color: var(--c3); }
+.a3 .btn.primary { background: var(--c3b); color: var(--c3); border-color: rgba(249,168,37,.3); }
+.a3 .info-box { background: var(--c3b); border-color: rgba(249,168,37,.2); }
+.a3 .info-box strong { color: var(--c3); }
+
+.a4 input[type=range] { background: rgba(232,121,160,.2); }
+.a4 input[type=range]::-webkit-slider-thumb { background: var(--c4); }
+.a4 .val, .a4 .sv.main { color: var(--c4); }
+.a4 .btn.primary { background: var(--c4b); color: var(--c4); border-color: rgba(232,121,160,.3); }
+.a4 .info-box { background: var(--c4b); border-color: rgba(232,121,160,.2); }
+.a4 .info-box strong { color: var(--c4); }
+
+.a5 input[type=range] { background: rgba(167,139,250,.2); }
+.a5 input[type=range]::-webkit-slider-thumb { background: var(--c5); }
+.a5 .val, .a5 .sv.main { color: var(--c5); }
+.a5 .btn.primary { background: var(--c5b); color: var(--c5); border-color: rgba(167,139,250,.3); }
+.a5 .info-box { background: var(--c5b); border-color: rgba(167,139,250,.2); }
+.a5 .info-box strong { color: var(--c5); }
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="icon">⚡</div>
+    <div>
+      <h1>Rate Limiter Lab</h1>
+      <p>5 algorithms · interactive</p>
+    </div>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="showTab(0)" id="tab0">
+      <span class="dot" style="background:var(--c1)"></span>Token Bucket
+    </div>
+    <div class="tab" onclick="showTab(1)" id="tab1">
+      <span class="dot" style="background:var(--c2)"></span>Leaky Bucket
+    </div>
+    <div class="tab" onclick="showTab(2)" id="tab2">
+      <span class="dot" style="background:var(--c3)"></span>Fixed Window
+    </div>
+    <div class="tab" onclick="showTab(3)" id="tab3">
+      <span class="dot" style="background:var(--c4)"></span>Sliding Log
+    </div>
+    <div class="tab" onclick="showTab(4)" id="tab4">
+      <span class="dot" style="background:var(--c5)"></span>Sliding Counter
+    </div>
+    <div class="tab tab-compare" onclick="showTab(5)" id="tab5">
+      ⊞ Compare all
+    </div>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- ═══════════════════════════════════════════════
+     PAGE 0 — TOKEN BUCKET
+═══════════════════════════════════════════════ -->
+<div class="page active a1" id="page0">
+  <div class="left-panel">
+    <div>
+      <div class="section-label">Configuration</div>
+      <div class="config-row"><label>Bucket capacity</label><input type="range" id="tb-cap" min="3" max="16" value="8" oninput="tbUpdate()"><span class="val" id="tb-cap-v">8</span></div>
+      <div class="config-row"><label>Refill rate (tok/s)</label><input type="range" id="tb-rate" min="1" max="6" value="2" oninput="tbUpdate()"><span class="val" id="tb-rate-v">2</span></div>
+    </div>
+    <div>
+      <div class="section-label">Bucket</div>
+      <div id="tb-wrap" class="vis-box">
+        <div id="tb-tokens" class="tokens-wrap"></div>
+        <div class="track" style="margin-top:10px"><div id="tb-fill" class="fill"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:5px">
+          <span style="font-size:10px;color:var(--text3);font-family:var(--mono)">capacity fill</span>
+          <span style="font-size:10px;color:var(--text3);font-family:var(--mono)" id="tb-fill-lbl">8/8</span>
+        </div>
+        <div style="margin-top:8px">
+          <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px">refill cycle</div>
+          <div class="track"><div id="tb-refill" class="fill" style="background:var(--c1);width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Send requests</div>
+      <div class="btn-row">
+        <button class="btn primary" onclick="tbSend(1)">×1</button>
+        <button class="btn" onclick="tbSend(3)">burst ×3</button>
+        <button class="btn" onclick="tbSend(10)">flood ×10</button>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Stats</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="sv main" id="tb-s0">8</div><div class="sl">tokens</div></div>
+        <div class="stat-card"><div class="sv" style="color:var(--c1)" id="tb-s1">0</div><div class="sl">allowed</div></div>
+        <div class="stat-card"><div class="sv" style="color:var(--red)" id="tb-s2">0</div><div class="sl">denied</div></div>
+      </div>
+    </div>
+    <div class="info-box">
+      <strong>Token Bucket</strong> — Each request consumes 1 token. Tokens refill at a fixed rate up to capacity. Bursts are allowed as long as tokens remain. When empty, requests are rejected until refilled. Memory O(1).
+    </div>
+  </div>
+  <div class="right-panel">
+    <div class="log-hdr"><h2>Request log</h2><button class="log-clear" onclick="clearLog('tb-log')">clear</button></div>
+    <div class="log-entries" id="tb-log"><div class="empty-log">// no requests yet</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PAGE 1 — LEAKY BUCKET
+═══════════════════════════════════════════════ -->
+<div class="page a2" id="page1">
+  <div class="left-panel">
+    <div>
+      <div class="section-label">Configuration</div>
+      <div class="config-row"><label>Queue capacity</label><input type="range" id="lb-cap" min="3" max="16" value="8" oninput="lbUpdate()"><span class="val" id="lb-cap-v">8</span></div>
+      <div class="config-row"><label>Process rate (req/s)</label><input type="range" id="lb-rate" min="1" max="5" value="2" oninput="lbUpdate()"><span class="val" id="lb-rate-v">2</span></div>
+    </div>
+    <div>
+      <div class="section-label">Queue visualization</div>
+      <div class="vis-box">
+        <div style="display:flex;align-items:flex-end;justify-content:center;gap:16px;padding:4px 0">
+          <!-- Bucket fill bar -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+            <span style="font-size:9px;color:var(--text3);font-family:var(--mono)" id="lb-fill-pct">0%</span>
+            <div style="width:36px;height:100px;border:1px solid var(--border2);border-radius:6px;background:var(--surface3);overflow:hidden;position:relative;display:flex;align-items:flex-end">
+              <div id="lb-water" style="width:100%;background:rgba(91,143,249,0.3);transition:height .4s ease;height:0%"></div>
+            </div>
+            <span style="font-size:9px;color:var(--text3);font-family:var(--mono)">queue</span>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:5px">queued requests</div>
+            <div id="lb-qdots" style="display:flex;flex-wrap:wrap;min-height:30px;gap:3px"></div>
+            <div style="margin-top:10px;font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px">drain rate</div>
+            <div class="track"><div id="lb-drain" class="fill" style="background:var(--c2);width:0%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Send requests</div>
+      <div class="btn-row">
+        <button class="btn primary" onclick="lbSend(1)">×1</button>
+        <button class="btn" onclick="lbSend(4)">burst ×4</button>
+        <button class="btn" onclick="lbSend(15)">flood ×15</button>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Stats</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="sv main" id="lb-s0">0</div><div class="sl">in queue</div></div>
+        <div class="stat-card"><div class="sv" style="color:var(--c2)" id="lb-s1">0</div><div class="sl">processed</div></div>
+        <div class="stat-card"><div class="sv" style="color:var(--red)" id="lb-s2">0</div><div class="sl">dropped</div></div>
+      </div>
+    </div>
+    <div class="info-box">
+      <strong>Leaky Bucket</strong> — Requests enter a fixed-size FIFO queue. The queue drains at a constant rate regardless of burst. When full, new arrivals overflow (dropped). Output is always smooth — no downstream burst possible.
+    </div>
+  </div>
+  <div class="right-panel">
+    <div class="log-hdr"><h2>Request log</h2><button class="log-clear" onclick="clearLog('lb-log')">clear</button></div>
+    <div class="log-entries" id="lb-log"><div class="empty-log">// no requests yet</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PAGE 2 — FIXED WINDOW COUNTER
+═══════════════════════════════════════════════ -->
+<div class="page a3" id="page2">
+  <div class="left-panel">
+    <div>
+      <div class="section-label">Configuration</div>
+      <div class="config-row"><label>Max requests/window</label><input type="range" id="fw-lim" min="3" max="20" value="10" oninput="fwUpdate()"><span class="val" id="fw-lim-v">10</span></div>
+      <div class="config-row"><label>Window size (s)</label><input type="range" id="fw-win" min="5" max="20" value="10" oninput="fwUpdate()"><span class="val" id="fw-win-v">10</span></div>
+    </div>
+    <div>
+      <div class="section-label">Current window</div>
+      <div class="vis-box">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">requests used</span>
+          <span style="font-family:var(--mono);font-size:12px;font-weight:600" id="fw-count-lbl">0/10</span>
+        </div>
+        <div class="win-block"><div id="fw-bar" class="win-fill"></div><div id="fw-bar-txt" class="win-label">0%</div></div>
+        <div style="margin-top:10px;font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px">window timer (resets in <span id="fw-cd">10.0</span>s)</div>
+        <div class="track"><div id="fw-timer" class="fill" style="background:var(--c3);width:100%"></div></div>
+        <div id="fw-alert" style="display:none;margin-top:10px;background:rgba(240,112,112,.08);border:1px solid rgba(240,112,112,.2);border-radius:6px;padding:8px;font-size:10px;color:var(--red);font-family:var(--mono)">
+          ⚠ Boundary burst risk — up to 2× limit across window edge
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Send requests</div>
+      <div class="btn-row">
+        <button class="btn primary" onclick="fwSend(1)">×1</button>
+        <button class="btn" onclick="fwSend(5)">burst ×5</button>
+        <button class="btn" onclick="fwSend(15)">flood ×15</button>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Stats</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="sv main" id="fw-s0">0</div><div class="sl">this window</div></div>
+        <div class="stat-card"><div class="sv" style="color:var(--c1)" id="fw-s1">0</div><div class="sl">allowed</div></div>
+        <div class="stat-card"><div class="sv" style="color:var(--red)" id="fw-s2">0</div><div class="sl">denied</div></div>
+      </div>
+    </div>
+    <div class="info-box">
+      <strong>Fixed Window</strong> — Time split into fixed slots; counter resets each slot. Simple O(1). Vulnerable to boundary burst: send 10 requests just before reset + 10 just after = 20 requests in ~2s despite a limit of 10.
+    </div>
+  </div>
+  <div class="right-panel">
+    <div class="log-hdr"><h2>Request log</h2><button class="log-clear" onclick="clearLog('fw-log')">clear</button></div>
+    <div class="log-entries" id="fw-log"><div class="empty-log">// no requests yet</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PAGE 3 — SLIDING WINDOW LOG
+═══════════════════════════════════════════════ -->
+<div class="page a4" id="page3">
+  <div class="left-panel">
+    <div>
+      <div class="section-label">Configuration</div>
+      <div class="config-row"><label>Max requests</label><input type="range" id="sl-lim" min="3" max="20" value="8" oninput="slUpdate()"><span class="val" id="sl-lim-v">8</span></div>
+      <div class="config-row"><label>Window size (s)</label><input type="range" id="sl-win" min="5" max="30" value="10" oninput="slUpdate()"><span class="val" id="sl-win-v">10</span></div>
+    </div>
+    <div>
+      <div class="section-label">Rolling window timeline (30s view)</div>
+      <div class="vis-box">
+        <div class="timeline-wrap" id="sl-timeline">
+          <div id="sl-tl-highlight" class="tl-highlight" style="background:rgba(232,121,160,0.08);border-left:1.5px solid rgba(232,121,160,0.5);border-right:1.5px solid rgba(232,121,160,0.5)"></div>
+          <div id="sl-tl-dots"></div>
+          <div class="tl-label" style="bottom:3px;left:6px">−30s</div>
+          <div class="tl-label" style="bottom:3px;right:6px">now</div>
+        </div>
+        <div style="margin-top:8px;display:flex;justify-content:space-between">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">● in window &nbsp; ○ expired</span>
+          <span style="font-family:var(--mono);font-size:10px" id="sl-in-win-lbl">0 / 8</span>
+        </div>
+        <div style="margin-top:10px;font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:3px">log memory used</div>
+        <div class="track"><div id="sl-mem-bar" class="fill" style="background:var(--c4);width:0%"></div></div>
+        <div style="font-size:9px;color:var(--text3);font-family:var(--mono);margin-top:3px">stored timestamps: <span id="sl-mem-count">0</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Send requests</div>
+      <div class="btn-row">
+        <button class="btn primary" onclick="slSend(1)">×1</button>
+        <button class="btn" onclick="slSend(4)">burst ×4</button>
+        <button class="btn" onclick="slSend(12)">flood ×12</button>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Stats</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="sv main" id="sl-s0">0</div><div class="sl">in window</div></div>
+        <div class="stat-card"><div class="sv" style="color:var(--c1)" id="sl-s1">0</div><div class="sl">allowed</div></div>
+        <div class="stat-card"><div class="sv" style="color:var(--red)" id="sl-s2">0</div><div class="sl">denied</div></div>
+      </div>
+    </div>
+    <div class="info-box">
+      <strong>Sliding Window Log</strong> — Stores every request timestamp. On each request, prunes expired entries then checks count. Perfectly accurate, no boundary burst. Memory cost O(n) — expensive at high traffic.
+    </div>
+  </div>
+  <div class="right-panel">
+    <div class="log-hdr"><h2>Request log</h2><button class="log-clear" onclick="clearLog('sl-log')">clear</button></div>
+    <div class="log-entries" id="sl-log"><div class="empty-log">// no requests yet</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PAGE 4 — SLIDING WINDOW COUNTER
+═══════════════════════════════════════════════ -->
+<div class="page a5" id="page4">
+  <div class="left-panel">
+    <div>
+      <div class="section-label">Configuration</div>
+      <div class="config-row"><label>Max requests</label><input type="range" id="sc-lim" min="5" max="30" value="10" oninput="scUpdate()"><span class="val" id="sc-lim-v">10</span></div>
+      <div class="config-row"><label>Window size (s)</label><input type="range" id="sc-win" min="5" max="20" value="10" oninput="scUpdate()"><span class="val" id="sc-win-v">10</span></div>
+    </div>
+    <div>
+      <div class="section-label">Weighted estimate</div>
+      <div class="vis-box">
+        <div class="formula">
+          <div class="dim">estimate = prev × overlap + curr</div>
+          <div>= <span class="hi" id="sc-fp" style="color:var(--c2)">0</span> × <span class="hi" id="sc-fw" style="color:var(--c5)">1.00</span> + <span class="hi" id="sc-fc" style="color:var(--c1)">0</span> = <span class="hi" id="sc-fe" style="color:var(--c5)">0.0</span></div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:4px;border-radius:5px;overflow:hidden;height:24px;border:1px solid var(--border2)">
+          <div id="sc-prev-bar" style="background:rgba(91,143,249,0.2);transition:width .25s;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--c2)" id="sc-pb"></div>
+          <div id="sc-curr-bar" style="background:rgba(167,139,250,0.2);transition:width .25s;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--c5)" id="sc-cb"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3);font-family:var(--mono);margin-top:3px">
+          <span>← previous window</span><span>current window →</span>
+        </div>
+        <div style="margin-top:10px;font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:3px">
+          window timer (resets in <span id="sc-cd">10.0</span>s · weight = <span id="sc-wd">1.00</span>)
+        </div>
+        <div class="track"><div id="sc-timer" class="fill" style="background:var(--c5);width:100%"></div></div>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Send requests</div>
+      <div class="btn-row">
+        <button class="btn primary" onclick="scSend(1)">×1</button>
+        <button class="btn" onclick="scSend(5)">burst ×5</button>
+        <button class="btn" onclick="scSend(20)">flood ×20</button>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Stats</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="sv main" id="sc-s0">0.0</div><div class="sl">estimate</div></div>
+        <div class="stat-card"><div class="sv" style="color:var(--c1)" id="sc-s1">0</div><div class="sl">allowed</div></div>
+        <div class="stat-card"><div class="sv" style="color:var(--red)" id="sc-s2">0</div><div class="sl">denied</div></div>
+      </div>
+    </div>
+    <div class="info-box">
+      <strong>Sliding Window Counter</strong> — Stores only 2 counters (prev + curr). Rolling estimate = prev × overlap_weight + curr. O(1) memory, near-accurate. ~5% error assuming uniform distribution. The production standard.
+    </div>
+  </div>
+  <div class="right-panel">
+    <div class="log-hdr"><h2>Request log</h2><button class="log-clear" onclick="clearLog('sc-log')">clear</button></div>
+    <div class="log-entries" id="sc-log"><div class="empty-log">// no requests yet</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     PAGE 5 — COMPARE
+═══════════════════════════════════════════════ -->
+<div class="page" id="page5" style="overflow-y:auto;display:none">
+  <div class="compare-grid">
+
+    <div class="ccard">
+      <div class="ccard-hdr"><div class="ccard-dot" style="background:var(--c1)"></div><div><div class="ccard-name">Token Bucket</div><div class="ccard-sub">Token + refill rate</div></div></div>
+      <div class="ccard-row"><span class="ccard-key">Burst handling</span><span class="ccard-pill pill-g">Allowed</span></div>
+      <div class="ccard-row"><span class="ccard-key">Memory</span><span class="ccard-pill pill-g">O(1)</span></div>
+      <div class="ccard-row"><span class="ccard-key">Accuracy</span><div class="stars"><div class="star" style="background:var(--c1)"></div><div class="star" style="background:var(--c1)"></div><div class="star" style="background:var(--c1)"></div><div class="star" style="background:var(--c1)"></div><div class="star" style="background:var(--surface3)"></div></div></div>
+      <div class="ccard-row"><span class="ccard-key">Complexity</span><span class="ccard-pill pill-g">Low</span></div>
+      <div class="ccard-row"><span class="ccard-key">Boundary burst</span><span class="ccard-pill pill-g">No</span></div>
+      <div class="ccard-row"><span class="ccard-key">Best for</span><span style="font-size:10px;color:var(--text2)">APIs needing burst tolerance</span></div>
+      <div class="pros-cons">
+        <div class="pro">✓ Natural burst support · Simple · Intuitive</div>
+        <div class="pro">✓ Works well for bursty clients (mobile, retries)</div>
+        <div class="con">✗ 2 params to tune · Large burst at start possible</div>
+      </div>
+    </div>
+
+    <div class="ccard">
+      <div class="ccard-hdr"><div class="ccard-dot" style="background:var(--c2)"></div><div><div class="ccard-name">Leaky Bucket</div><div class="ccard-sub">Fixed-rate queue drain</div></div></div>
+      <div class="ccard-row"><span class="ccard-key">Burst handling</span><span class="ccard-pill pill-y">Queued</span></div>
+      <div class="ccard-row"><span class="ccard-key">Memory</span><span class="ccard-pill pill-y">O(queue size)</span></div>
+      <div class="ccard-row"><span class="ccard-key">Accuracy</span><div class="stars"><div class="star" style="background:var(--c2)"></div><div class="star" style="background:var(--c2)"></div><div class="star" style="background:var(--c2)"></div><div class="star" style="background:var(--c2)"></div><div class="star" style="background:var(--surface3)"></div></div></div>
+      <div class="ccard-row"><span class="ccard-key">Complexity</span><span class="ccard-pill pill-g">Low</span></div>
+      <div class="ccard-row"><span class="ccard-key">Boundary burst</span><span class="ccard-pill pill-g">No</span></div>
+      <div class="ccard-row"><span class="ccard-key">Best for</span><span style="font-size:10px;color:var(--text2)">Smooth downstream (payments, SMS)</span></div>
+      <div class="pros-cons">
+        <div class="pro">✓ Perfectly smooth output · Protects downstream</div>
+        <div class="con">✗ Bursts add latency · Queue memory · Drops under flood</div>
+      </div>
+    </div>
+
+    <div class="ccard">
+      <div class="ccard-hdr"><div class="ccard-dot" style="background:var(--c3)"></div><div><div class="ccard-name">Fixed Window Counter</div><div class="ccard-sub">Counter per time slot</div></div></div>
+      <div class="ccard-row"><span class="ccard-key">Burst handling</span><span class="ccard-pill pill-r">Vulnerable</span></div>
+      <div class="ccard-row"><span class="ccard-key">Memory</span><span class="ccard-pill pill-g">O(1)</span></div>
+      <div class="ccard-row"><span class="ccard-key">Accuracy</span><div class="stars"><div class="star" style="background:var(--c3)"></div><div class="star" style="background:var(--c3)"></div><div class="star" style="background:var(--surface3)"></div><div class="star" style="background:var(--surface3)"></div><div class="star" style="background:var(--surface3)"></div></div></div>
+      <div class="ccard-row"><span class="ccard-key">Complexity</span><span class="ccard-pill pill-g">Lowest</span></div>
+      <div class="ccard-row"><span class="ccard-key">Boundary burst</span><span class="ccard-pill pill-r">Yes — 2×</span></div>
+      <div class="ccard-row"><span class="ccard-key">Best for</span><span style="font-size:10px;color:var(--text2)">Simple quotas, billing cycles</span></div>
+      <div class="pros-cons">
+        <div class="pro">✓ Dead simple · 1 Redis INCR · Works everywhere</div>
+        <div class="con">✗ Boundary burst allows 2× · Synchronized resets spike traffic</div>
+      </div>
+    </div>
+
+    <div class="ccard">
+      <div class="ccard-hdr"><div class="ccard-dot" style="background:var(--c4)"></div><div><div class="ccard-name">Sliding Window Log</div><div class="ccard-sub">Timestamp log (sorted set)</div></div></div>
+      <div class="ccard-row"><span class="ccard-key">Burst handling</span><span class="ccard-pill pill-g">Blocked</span></div>
+      <div class="ccard-row"><span class="ccard-key">Memory</span><span class="ccard-pill pill-r">O(n requests)</span></div>
+      <div class="ccard-row"><span class="ccard-key">Accuracy</span><div class="stars"><div class="star" style="background:var(--c4)"></div><div class="star" style="background:var(--c4)"></div><div class="star" style="background:var(--c4)"></div><div class="star" style="background:var(--c4)"></div><div class="star" style="background:var(--c4)"></div></div></div>
+      <div class="ccard-row"><span class="ccard-key">Complexity</span><span class="ccard-pill pill-y">Medium</span></div>
+      <div class="ccard-row"><span class="ccard-key">Boundary burst</span><span class="ccard-pill pill-g">No</span></div>
+      <div class="ccard-row"><span class="ccard-key">Best for</span><span style="font-size:10px;color:var(--text2)">Low-traffic, precision critical</span></div>
+      <div class="pros-cons">
+        <div class="pro">✓ Most accurate · No boundary burst · Fair per-user</div>
+        <div class="con">✗ Memory grows with traffic · Redis sorted set overhead</div>
+      </div>
+    </div>
+
+    <div class="ccard" style="border-color:rgba(167,139,250,0.3)">
+      <div style="font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--c5);font-family:var(--mono);margin-bottom:8px">★ PRODUCTION DEFAULT</div>
+      <div class="ccard-hdr"><div class="ccard-dot" style="background:var(--c5)"></div><div><div class="ccard-name">Sliding Window Counter</div><div class="ccard-sub">Weighted interpolation</div></div></div>
+      <div class="ccard-row"><span class="ccard-key">Burst handling</span><span class="ccard-pill pill-g">Blocked</span></div>
+      <div class="ccard-row"><span class="ccard-key">Memory</span><span class="ccard-pill pill-g">O(1)</span></div>
+      <div class="ccard-row"><span class="ccard-key">Accuracy</span><div class="stars"><div class="star" style="background:var(--c5)"></div><div class="star" style="background:var(--c5)"></div><div class="star" style="background:var(--c5)"></div><div class="star" style="background:var(--c5)"></div><div class="star" style="background:var(--surface3)"></div></div></div>
+      <div class="ccard-row"><span class="ccard-key">Complexity</span><span class="ccard-pill pill-g">Low</span></div>
+      <div class="ccard-row"><span class="ccard-key">Boundary burst</span><span class="ccard-pill pill-g">No</span></div>
+      <div class="ccard-row"><span class="ccard-key">Best for</span><span style="font-size:10px;color:var(--text2)">High-traffic APIs (Redis INCR pattern)</span></div>
+      <div class="pros-cons">
+        <div class="pro">✓ O(1) memory · Near-accurate · Atomic INCR · Scalable</div>
+        <div class="con">✗ ~5% error under skewed load · Assumes uniform distribution</div>
+      </div>
+    </div>
+
+    <div class="ccard" style="background:var(--surface2)">
+      <div class="section-label" style="margin-bottom:12px">Senior architect pick</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:14px">
+        In production, layer multiple algorithms — each defends a different threat:
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px;font-size:11px">
+          <span class="ccard-pill pill-b" style="flex-shrink:0">Edge / CDN</span>
+          <span style="color:var(--text2)">Token bucket — absorb DDoS bursts</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:11px">
+          <span class="ccard-pill pill-b" style="flex-shrink:0">API Gateway</span>
+          <span style="color:var(--text2)">Sliding window counter — per-key quota</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:11px">
+          <span class="ccard-pill pill-b" style="flex-shrink:0">Downstream</span>
+          <span style="color:var(--text2)">Leaky bucket — smooth outbound traffic</span>
+        </div>
+      </div>
+      <div style="margin-top:14px;padding:10px;background:var(--surface3);border-radius:7px;font-family:var(--mono);font-size:10px;color:var(--text3)">
+        # Redis patterns<br>
+        INCR key · EXPIRE key window   <span style="color:var(--c5)"># fixed / sliding counter</span><br>
+        ZADD key ts ts · ZRANGEBYSCORE  <span style="color:var(--c4)"># sliding log</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<script>
+// ── TAB SWITCHING ──
+function showTab(i) {
+  document.querySelectorAll('.tab').forEach((t,j) => t.classList.toggle('active', j===i));
+  document.querySelectorAll('.page').forEach((p,j) => {
+    p.classList.toggle('active', j===i);
+    p.style.display = (j===i) ? (i===5 ? 'block' : 'flex') : 'none';
+  });
+}
+
+// ── LOG HELPERS ──
+const logEmpty = {};
+function clearLog(id) {
+  document.getElementById(id).innerHTML = '<div class="empty-log">// log cleared</div>';
+  logEmpty[id] = true;
+}
+function addLog(logId, msg, type, extra, accentColor) {
+  const log = document.getElementById(logId);
+  if (!logEmpty[logId] && log.querySelector('.empty-log')) log.innerHTML='';
+  logEmpty[logId] = false;
+  const t = new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const e = document.createElement('div');
+  const colors = {
+    ok:    { bg:'rgba(61,219,168,0.1)', border:'rgba(61,219,168,0.2)', text:'var(--c1)' },
+    deny:  { bg:'var(--redb)',          border:'rgba(240,112,112,0.2)', text:'var(--red)' },
+    proc:  { bg:'rgba(91,143,249,0.1)', border:'rgba(91,143,249,0.2)', text:'var(--c2)' },
+    reset: { bg:'rgba(249,168,37,0.1)', border:'rgba(249,168,37,0.2)', text:'var(--c3)' },
+    prune: { bg:'var(--surface2)',       border:'var(--border)',        text:'var(--text3)' },
+  };
+  const c = colors[type] || colors.ok;
+  const labels = { ok:'ALLOW', deny:'DENY', proc:'PROC', reset:'RESET', prune:'PRUNE' };
+  e.className = 'le';
+  e.style.borderColor = c.border;
+  e.innerHTML = `<span class="lt">${t}</span><span class="lb" style="background:${c.bg};color:${c.text};border-color:${c.border}">${labels[type]||type}</span><span class="lm">${msg}</span>${extra ? `<span class="lx">${extra}</span>` : ''}`;
+  log.insertBefore(e, log.firstChild);
+  if (log.children.length > 300) log.removeChild(log.lastChild);
+}
+
+// ═══════════════════════════════════════════
+// ALGO 1 — TOKEN BUCKET
+// ═══════════════════════════════════════════
+let tb = { cap:8, rate:2, tokens:8, allowed:0, denied:0, accum:0 };
+function tbUpdate() {
+  tb.cap  = +document.getElementById('tb-cap').value;
+  tb.rate = +document.getElementById('tb-rate').value;
+  document.getElementById('tb-cap-v').textContent  = tb.cap;
+  document.getElementById('tb-rate-v').textContent = tb.rate;
+  tb.tokens = Math.min(tb.tokens, tb.cap);
+  tbRender();
+}
+function tbRender() {
+  const c = document.getElementById('tb-tokens');
+  while(c.children.length < tb.cap) { const d=document.createElement('div'); d.className='tok off'; d.textContent='○'; c.appendChild(d); }
+  while(c.children.length > tb.cap) c.removeChild(c.lastChild);
+  for(let i=0;i<tb.cap;i++){
+    const d=c.children[i];
+    if(i<tb.tokens){ d.className='tok on'; d.style.background='rgba(61,219,168,0.15)'; d.style.borderColor='var(--c1)'; d.style.color='var(--c1)'; d.textContent='●'; }
+    else { d.className='tok off'; d.style.background=''; d.style.borderColor=''; d.style.color=''; d.textContent='○'; }
+  }
+  const pct = (tb.tokens/tb.cap)*100;
+  const bar = document.getElementById('tb-fill');
+  bar.style.width = pct+'%';
+  bar.style.background = pct<25 ? 'var(--red)' : pct<60 ? 'var(--c3)' : 'var(--c1)';
+  document.getElementById('tb-fill-lbl').textContent = tb.tokens+'/'+tb.cap;
+  document.getElementById('tb-s0').textContent = tb.tokens;
+  document.getElementById('tb-s1').textContent = tb.allowed;
+  document.getElementById('tb-s2').textContent = tb.denied;
+}
+function tbSend(n) {
+  for(let i=0;i<n;i++) setTimeout(()=>{
+    if(tb.tokens>0){ tb.tokens--; tb.allowed++; addLog('tb-log',`accepted — 1 token consumed`,'ok',tb.tokens+'t'); }
+    else { tb.denied++; const w=document.getElementById('tb-wrap'); w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake'); addLog('tb-log','rejected — bucket empty','deny',''); }
+    tbRender();
+  }, i*130);
+}
+setInterval(()=>{
+  tb.accum += tb.rate/10;
+  const add = Math.floor(tb.accum);
+  if(add>0 && tb.tokens<tb.cap){ tb.tokens=Math.min(tb.cap,tb.tokens+add); tb.accum-=add; tbRender(); }
+  const cyc = (tb.accum%1)*100;
+  document.getElementById('tb-refill').style.width = cyc+'%';
+},100);
+tbRender();
+
+// ═══════════════════════════════════════════
+// ALGO 2 — LEAKY BUCKET
+// ═══════════════════════════════════════════
+let lb = { cap:8, rate:2, queue:[], proc:0, drop:0, rid:0, drain:0 };
+function lbUpdate() {
+  lb.cap  = +document.getElementById('lb-cap').value;
+  lb.rate = +document.getElementById('lb-rate').value;
+  document.getElementById('lb-cap-v').textContent  = lb.cap;
+  document.getElementById('lb-rate-v').textContent = lb.rate;
+  lbRender();
+}
+function lbRender() {
+  const pct = (lb.queue.length/lb.cap)*100;
+  document.getElementById('lb-water').style.height = pct+'%';
+  document.getElementById('lb-water').style.background = pct>80 ? 'rgba(240,112,112,0.35)' : 'rgba(91,143,249,0.3)';
+  document.getElementById('lb-fill-pct').textContent = Math.round(pct)+'%';
+  const qd = document.getElementById('lb-qdots'); qd.innerHTML='';
+  lb.queue.forEach(id=>{ const d=document.createElement('div'); d.className='qdot'; d.style.background='rgba(91,143,249,0.2)'; d.style.border='1px solid rgba(91,143,249,0.4)'; d.style.color='var(--c2)'; d.style.fontSize='8px'; d.style.fontFamily='var(--mono)'; d.textContent=id; qd.appendChild(d); });
+  document.getElementById('lb-s0').textContent = lb.queue.length;
+  document.getElementById('lb-s1').textContent = lb.proc;
+  document.getElementById('lb-s2').textContent = lb.drop;
+}
+function lbSend(n) {
+  for(let i=0;i<n;i++) setTimeout(()=>{
+    lb.rid++;
+    if(lb.queue.length<lb.cap){ lb.queue.push(lb.rid%100); addLog('lb-log',`req #${lb.rid} enqueued — ${lb.queue.length}/${lb.cap}`,'ok',''); }
+    else { lb.drop++; addLog('lb-log',`req #${lb.rid} dropped — queue full`,'deny',''); }
+    lbRender();
+  }, i*100);
+}
+setInterval(()=>{
+  lb.drain = (lb.drain+lb.rate/5)%1;
+  document.getElementById('lb-drain').style.width=(lb.drain*100)+'%';
+  if(Math.random()<lb.rate/5 && lb.queue.length>0){
+    const id=lb.queue.shift(); lb.proc++;
+    addLog('lb-log',`req #${id} processed — queue ${lb.queue.length}/${lb.cap}`,'proc','');
+    lbRender();
+  }
+},200);
+lbRender();
+
+// ═══════════════════════════════════════════
+// ALGO 3 — FIXED WINDOW COUNTER
+// ═══════════════════════════════════════════
+let fw = { lim:10, win:10, count:0, allowed:0, denied:0, rid:0, start:Date.now() };
+function fwUpdate() {
+  fw.lim = +document.getElementById('fw-lim').value;
+  fw.win = +document.getElementById('fw-win').value;
+  document.getElementById('fw-lim-v').textContent = fw.lim;
+  document.getElementById('fw-win-v').textContent = fw.win;
+  fwRender();
+}
+function fwRender() {
+  const pct = Math.min(100,(fw.count/fw.lim)*100);
+  const bar = document.getElementById('fw-bar');
+  bar.style.width = pct+'%';
+  bar.style.background = pct>=100 ? 'var(--red)' : pct>70 ? 'var(--c3)' : 'var(--c1d)';
+  document.getElementById('fw-bar-txt').textContent = Math.round(pct)+'%';
+  document.getElementById('fw-count-lbl').textContent = fw.count+'/'+fw.lim;
+  document.getElementById('fw-s0').textContent = fw.count;
+  document.getElementById('fw-s1').textContent = fw.allowed;
+  document.getElementById('fw-s2').textContent = fw.denied;
+  document.getElementById('fw-alert').style.display = pct>75 ? 'block' : 'none';
+}
+function fwSend(n) {
+  for(let i=0;i<n;i++) setTimeout(()=>{
+    fw.rid++;
+    if(fw.count<fw.lim){ fw.count++; fw.allowed++; addLog('fw-log',`req #${fw.rid} allowed — ${fw.count}/${fw.lim} this window`,'ok',''); }
+    else { fw.denied++; addLog('fw-log',`req #${fw.rid} denied — window limit reached`,'deny',''); }
+    fwRender();
+  }, i*80);
+}
+setInterval(()=>{
+  const elapsed=(Date.now()-fw.start)/1000, rem=fw.win-elapsed;
+  document.getElementById('fw-timer').style.width=(Math.max(0,rem/fw.win)*100)+'%';
+  document.getElementById('fw-cd').textContent=Math.max(0,rem).toFixed(1);
+  if(rem<=0){ fw.count=0; fw.start=Date.now(); addLog('fw-log','window reset — counter cleared','reset',''); fwRender(); }
+},100);
+fwRender();
+
+// ═══════════════════════════════════════════
+// ALGO 4 — SLIDING WINDOW LOG
+// ═══════════════════════════════════════════
+const TL_SECS=30;
+let sl = { lim:8, win:10, log:[], allowed:0, denied:0, rid:0 };
+function slUpdate() {
+  sl.lim = +document.getElementById('sl-lim').value;
+  sl.win = +document.getElementById('sl-win').value;
+  document.getElementById('sl-lim-v').textContent = sl.lim;
+  document.getElementById('sl-win-v').textContent = sl.win;
+}
+function slSend(n) {
+  for(let i=0;i<n;i++) setTimeout(()=>{
+    sl.rid++;
+    const now=Date.now(), cutoff=now-sl.win*1000;
+    const before=sl.log.length; sl.log=sl.log.filter(t=>t>cutoff);
+    const pruned=before-sl.log.length;
+    if(pruned>0) addLog('sl-log',`pruned ${pruned} expired entries`,'prune','');
+    if(sl.log.length<sl.lim){ sl.log.push(now); sl.allowed++; addLog('sl-log',`req #${sl.rid} allowed — ${sl.log.length}/${sl.lim} in window`,'ok',sl.log.length+'ts'); }
+    else { sl.denied++; addLog('sl-log',`req #${sl.rid} denied — ${sl.log.length}/${sl.lim} in window`,'deny',''); }
+  }, i*90);
+}
+setInterval(()=>{
+  const now=Date.now(), cutoff=now-sl.win*1000;
+  sl.log=sl.log.filter(t=>t>cutoff);
+  document.getElementById('sl-in-win-lbl').textContent = sl.log.length+' / '+sl.lim;
+  document.getElementById('sl-mem-bar').style.width = Math.min(100,(sl.log.length/Math.max(1,sl.lim))*100)+'%';
+  document.getElementById('sl-mem-count').textContent = sl.log.length;
+  document.getElementById('sl-s0').textContent = sl.log.length;
+  document.getElementById('sl-s1').textContent = sl.allowed;
+  document.getElementById('sl-s2').textContent = sl.denied;
+  const hl = document.getElementById('sl-tl-highlight');
+  const wf = sl.win/TL_SECS;
+  hl.style.left = ((1-wf)*100)+'%';
+  hl.style.width = (wf*100)+'%';
+  const dotsEl = document.getElementById('sl-tl-dots'); dotsEl.innerHTML='';
+  sl.log.forEach(ts=>{ const age=(now-ts)/1000, pos=1-(age/TL_SECS); if(pos>=0){ const d=document.createElement('div'); d.className='tl-dot'; d.style.left=(pos*100)+'%'; d.style.background='var(--c4)'; dotsEl.appendChild(d); } });
+},200);
+
+// ═══════════════════════════════════════════
+// ALGO 5 — SLIDING WINDOW COUNTER
+// ═══════════════════════════════════════════
+let sc = { lim:10, win:10, prev:0, curr:0, allowed:0, denied:0, rid:0, start:Date.now() };
+function scUpdate() {
+  sc.lim = +document.getElementById('sc-lim').value;
+  sc.win = +document.getElementById('sc-win').value;
+  document.getElementById('sc-lim-v').textContent = sc.lim;
+  document.getElementById('sc-win-v').textContent = sc.win;
+}
+function scWeight() { return 1-Math.min(1,(Date.now()-sc.start)/(sc.win*1000)); }
+function scEst() { return sc.prev*scWeight()+sc.curr; }
+function scSend(n) {
+  for(let i=0;i<n;i++) setTimeout(()=>{
+    sc.rid++;
+    const est=scEst();
+    if(est<sc.lim){ sc.curr++; sc.allowed++; addLog('sc-log',`req #${sc.rid} allowed — est ${est.toFixed(1)}→${(est+1).toFixed(1)}/${sc.lim}`,'ok',''); }
+    else { sc.denied++; addLog('sc-log',`req #${sc.rid} denied — est ${est.toFixed(1)}/${sc.lim}`,'deny',''); }
+  }, i*80);
+}
+setInterval(()=>{
+  const rem=sc.win-((Date.now()-sc.start)/1000);
+  if(rem<=0){ sc.prev=sc.curr; sc.curr=0; sc.start=Date.now(); addLog('sc-log',`window rotated — prev=${sc.prev}, curr=0`,'reset',''); }
+  const w=scWeight(), est=scEst();
+  document.getElementById('sc-fp').textContent=sc.prev;
+  document.getElementById('sc-fw').textContent=w.toFixed(2);
+  document.getElementById('sc-fc').textContent=sc.curr;
+  document.getElementById('sc-fe').textContent=est.toFixed(1);
+  document.getElementById('sc-wd').textContent=w.toFixed(2);
+  document.getElementById('sc-cd').textContent=Math.max(0,rem).toFixed(1);
+  document.getElementById('sc-timer').style.width=(Math.max(0,rem/sc.win)*100)+'%';
+  document.getElementById('sc-s0').textContent=est.toFixed(1);
+  document.getElementById('sc-s1').textContent=sc.allowed;
+  document.getElementById('sc-s2').textContent=sc.denied;
+  const tot=sc.prev+sc.curr||1;
+  const mx=Math.max(tot,sc.lim);
+  const pb=document.getElementById('sc-prev-bar'), cb=document.getElementById('sc-curr-bar');
+  pb.style.width=((sc.prev/mx)*100)+'%'; pb.textContent=sc.prev||'';
+  cb.style.width=((sc.curr/mx)*100)+'%'; cb.textContent=sc.curr||'';
+},100);
+</script>
+</body>
+</html>
