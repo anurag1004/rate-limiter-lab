@@ -1,962 +1,1247 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rate Limiting Algorithms — Interactive Simulator</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rate Limiting Algorithms | Interactive Architecture</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
-:root {
-  --bg:       #0c0e14;
-  --surface:  #13161f;
-  --surface2: #1a1e2e;
-  --surface3: #212640;
-  --border:   rgba(255,255,255,0.07);
-  --border2:  rgba(255,255,255,0.13);
-  --text:     #dde1f0;
-  --text2:    #7b82a0;
-  --text3:    #454c66;
-  --mono: 'IBM Plex Mono', monospace;
-  --sans: 'IBM Plex Sans', sans-serif;
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* slate-900 */
+            color: #f8fafc; /* slate-50 */
+            margin: 0;
+            overflow-x: hidden;
+        }
 
-  --c1: #3ddba8; --c1b: rgba(61,219,168,0.1); --c1d: #1D9E75;
-  --c2: #5b8ff9; --c2b: rgba(91,143,249,0.1); --c2d: #2f5fc9;
-  --c3: #f9a825; --c3b: rgba(249,168,37,0.1);  --c3d: #c17d0a;
-  --c4: #e879a0; --c4b: rgba(232,121,160,0.1); --c4d: #b04070;
-  --c5: #a78bfa; --c5b: rgba(167,139,250,0.1); --c5d: #6d4fc9;
-  --red: #f07070; --redb: rgba(240,112,112,0.1); --redd: #c04040;
-}
+        h1, h2, h3, h4 { font-weight: 700; }
+        .code-font { font-family: 'JetBrains Mono', monospace; }
 
-html, body { height: 100%; }
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--sans);
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
-/* ── TOP NAV ── */
-.topbar {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 0 28px;
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  flex-shrink: 0;
-}
-.topbar-brand {
-  display: flex; align-items: center; gap: 10px;
-  padding: 14px 20px 14px 0;
-  border-right: 1px solid var(--border);
-  margin-right: 8px;
-}
-.topbar-brand .icon {
-  width: 28px; height: 28px; border-radius: 6px;
-  background: linear-gradient(135deg, var(--c1d), var(--c2d));
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px;
-}
-.topbar-brand h1 { font-family: var(--mono); font-size: 13px; font-weight: 600; letter-spacing: -.01em; }
-.topbar-brand p  { font-size: 10px; color: var(--text3); margin-top: 1px; }
+        /* Tab Transitions */
+        .tab-btn { transition: all 0.2s ease-in-out; }
+        .tab-btn.active {
+            background-color: #3b82f6; /* blue-500 */
+            color: white;
+            border-color: #3b82f6;
+        }
 
-.tabs { display: flex; align-items: stretch; gap: 2px; flex: 1; padding: 8px 0; overflow-x: auto; }
-.tab {
-  display: flex; align-items: center; gap: 7px;
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 12px; font-weight: 500; font-family: var(--mono);
-  color: var(--text3);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background .15s, color .15s;
-  border: 1px solid transparent;
-  user-select: none;
-}
-.tab:hover { background: var(--surface2); color: var(--text2); }
-.tab.active { background: var(--surface2); color: var(--text); border-color: var(--border2); }
-.tab .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.tab-compare { margin-left: auto; }
+        /* Canvas Container */
+        #canvas-container {
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            border: 1px solid #334155;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        }
 
-/* ── LAYOUT ── */
-.content { flex: 1; display: flex; overflow: hidden; }
-.page { display: none; width: 100%; }
-.page.active { display: flex; }
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px; width: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px;
+            cursor: pointer;
+            background: #475569;
+            border-radius: 2px;
+        }
 
-.left-panel {
-  width: 360px; flex-shrink: 0;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  padding: 20px;
-  overflow-y: auto;
-  display: flex; flex-direction: column; gap: 18px;
-}
-.right-panel {
-  flex: 1;
-  background: var(--bg);
-  padding: 16px 20px;
-  overflow-y: auto;
-  display: flex; flex-direction: column;
-}
+        .status-dot {
+            height: 8px; width: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-accepted { background-color: #22c55e; box-shadow: 0 0 8px #22c55e;}
+        .status-rejected { background-color: #ef4444; box-shadow: 0 0 8px #ef4444;}
 
-/* ── SHARED COMPONENTS ── */
-.section-label {
-  font-family: var(--mono);
-  font-size: 9px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: .12em;
-  color: var(--text3); margin-bottom: 10px;
-}
-
-.config-row {
-  display: flex; align-items: center; gap: 10px;
-  margin-bottom: 9px; font-size: 12px;
-}
-.config-row label { color: var(--text2); width: 165px; flex-shrink: 0; font-family: var(--mono); font-size: 11px; }
-.config-row input[type=range] {
-  flex: 1; -webkit-appearance: none;
-  height: 3px; border-radius: 2px;
-  outline: none; cursor: pointer;
-}
-.config-row input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 13px; height: 13px;
-  border-radius: 50%; cursor: pointer; transition: transform .15s;
-}
-.config-row input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.3); }
-.config-row .val { min-width: 26px; text-align: right; font-weight: 600; font-family: var(--mono); font-size: 12px; }
-
-.vis-box {
-  border: 1px solid var(--border2);
-  border-radius: 10px; padding: 14px;
-  background: var(--surface2);
-}
-
-.tokens-wrap { display: flex; flex-wrap: wrap; gap: 7px; min-height: 36px; }
-.tok {
-  width: 30px; height: 30px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 600; font-family: var(--mono);
-  transition: all .25s;
-}
-.tok.on  { border: 1.5px solid; }
-.tok.off { background: transparent; border: 1px solid var(--border2); color: var(--text3); }
-@keyframes tdrop { from{transform:translateY(-16px);opacity:0} to{transform:translateY(0);opacity:1} }
-.tok.adding { animation: tdrop .3s ease; }
-@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
-.shake { animation: shake .35s ease; }
-
-.track { height: 4px; border-radius: 2px; background: var(--surface3); overflow: hidden; margin-top: 8px; }
-.fill  { height: 100%; border-radius: 2px; transition: width .25s ease, background .3s; }
-
-.btn-row { display: flex; gap: 7px; }
-.btn {
-  flex: 1; padding: 8px 4px; font-size: 11px; font-weight: 600;
-  font-family: var(--mono); border-radius: 6px;
-  border: 1px solid var(--border2); background: var(--surface2);
-  color: var(--text2); cursor: pointer;
-  transition: background .15s, color .15s, transform .1s;
-}
-.btn:hover { background: var(--surface3); color: var(--text); }
-.btn:active { transform: scale(.97); }
-
-.stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
-.stat-card {
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 8px; padding: 9px 6px; text-align: center;
-}
-.sv { font-size: 20px; font-weight: 700; font-family: var(--mono); line-height: 1; }
-.sl { font-size: 9px; color: var(--text3); margin-top: 3px; text-transform: uppercase; letter-spacing: .08em; }
-
-.info-box {
-  border-radius: 8px; padding: 11px;
-  font-size: 11px; line-height: 1.6; color: var(--text2);
-  border: 1px solid;
-}
-.info-box strong { font-weight: 600; }
-
-/* ── LOG ── */
-.log-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.log-hdr h2 { font-family: var(--mono); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; color: var(--text3); }
-.log-clear { font-family: var(--mono); font-size: 10px; color: var(--text3); background: none; border: none; cursor: pointer; padding: 2px 8px; border-radius: 4px; transition: color .15s; }
-.log-clear:hover { color: var(--text2); }
-.log-entries { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-.le {
-  display: flex; align-items: center; gap: 9px;
-  padding: 5px 9px; border-radius: 5px; border: 1px solid transparent;
-  font-family: var(--mono); font-size: 11px;
-}
-@keyframes lslide { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:translateX(0)} }
-.le { animation: lslide .18s ease; }
-.le:hover { background: var(--surface2); }
-.lt { color: var(--text3); font-size: 10px; min-width: 66px; }
-.lb {
-  font-size: 8px; font-weight: 700; letter-spacing: .08em;
-  padding: 2px 6px; border-radius: 3px; min-width: 44px; text-align: center;
-  border: 1px solid;
-}
-.lm { color: var(--text2); flex: 1; font-size: 11px; }
-.lx { color: var(--text3); font-size: 10px; }
-.empty-log { color: var(--text3); font-family: var(--mono); font-size: 12px; text-align: center; margin-top: 48px; }
-
-/* ── PROGRESS BAR RING ── */
-.ring-wrap { position: relative; width: 100px; height: 100px; margin: 0 auto; }
-.ring-wrap svg { transform: rotate(-90deg); }
-.ring-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.ring-num { font-family: var(--mono); font-size: 20px; font-weight: 700; line-height: 1; }
-.ring-sub { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; margin-top: 3px; }
-
-/* ── TIMELINE ── */
-.timeline-wrap { position: relative; height: 44px; border-radius: 8px; background: var(--surface3); overflow: hidden; }
-.tl-highlight { position: absolute; top: 0; bottom: 0; transition: left .1s linear, width .1s linear; }
-.tl-label { position: absolute; font-family: var(--mono); font-size: 9px; color: var(--text3); }
-.tl-dot { position: absolute; width: 9px; height: 9px; border-radius: 50%; top: 50%; transform: translateY(-50%); }
-
-/* ── QUEUE DOTS ── */
-.qdot { width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; font-family: var(--mono); margin: 2px; }
-
-/* ── FORMULA BOX ── */
-.formula { background: var(--surface3); border-radius: 7px; padding: 9px 12px; font-family: var(--mono); font-size: 11px; line-height: 1.8; }
-.formula .dim { color: var(--text3); }
-.formula .hi  { font-weight: 600; }
-
-/* ── WINDOW VIZ ── */
-.win-block {
-  height: 28px; border-radius: 5px; position: relative;
-  overflow: hidden; border: 1px solid var(--border2);
-  margin-bottom: 5px;
-}
-.win-fill { height: 100%; border-radius: 4px; transition: width .3s ease, background .3s; }
-.win-label { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-family: var(--mono); font-size: 10px; color: var(--text2); }
-
-/* ── COMPARE PAGE ── */
-.compare-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 14px; padding: 20px;
-}
-.ccard {
-  background: var(--surface); border: 1px solid var(--border2);
-  border-radius: 12px; padding: 18px;
-}
-.ccard-hdr { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-.ccard-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.ccard-name { font-family: var(--mono); font-size: 13px; font-weight: 600; }
-.ccard-sub  { font-size: 10px; color: var(--text3); margin-top: 1px; }
-.ccard-row  { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 11px; }
-.ccard-row:last-child { border-bottom: none; }
-.ccard-key  { color: var(--text3); font-family: var(--mono); font-size: 10px; }
-.ccard-pill { font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 10px; border: 1px solid; letter-spacing: .04em; }
-.pill-g { background: rgba(61,219,168,.1);  color: var(--c1); border-color: rgba(61,219,168,.25); }
-.pill-r { background: var(--redb);          color: var(--red); border-color: rgba(240,112,112,.25); }
-.pill-y { background: rgba(249,168,37,.1);  color: var(--c3); border-color: rgba(249,168,37,.25); }
-.pill-b { background: rgba(91,143,249,.1);  color: var(--c2); border-color: rgba(91,143,249,.25); }
-.stars { display: flex; gap: 2px; }
-.star { width: 8px; height: 8px; border-radius: 50%; }
-.pros-cons { margin-top: 12px; display: flex; flex-direction: column; gap: 4px; }
-.pro { font-size: 10px; color: var(--c1); }
-.con { font-size: 10px; color: var(--red); }
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
-
-/* ── PER-ALGO ACCENTS ── */
-.a1 input[type=range] { background: rgba(61,219,168,.2); }
-.a1 input[type=range]::-webkit-slider-thumb { background: var(--c1); }
-.a1 .val, .a1 .sv.main { color: var(--c1); }
-.a1 .btn.primary { background: var(--c1b); color: var(--c1); border-color: rgba(61,219,168,.3); }
-.a1 .info-box { background: var(--c1b); border-color: rgba(61,219,168,.2); }
-.a1 .info-box strong { color: var(--c1); }
-
-.a2 input[type=range] { background: rgba(91,143,249,.2); }
-.a2 input[type=range]::-webkit-slider-thumb { background: var(--c2); }
-.a2 .val, .a2 .sv.main { color: var(--c2); }
-.a2 .btn.primary { background: var(--c2b); color: var(--c2); border-color: rgba(91,143,249,.3); }
-.a2 .info-box { background: var(--c2b); border-color: rgba(91,143,249,.2); }
-.a2 .info-box strong { color: var(--c2); }
-
-.a3 input[type=range] { background: rgba(249,168,37,.2); }
-.a3 input[type=range]::-webkit-slider-thumb { background: var(--c3); }
-.a3 .val, .a3 .sv.main { color: var(--c3); }
-.a3 .btn.primary { background: var(--c3b); color: var(--c3); border-color: rgba(249,168,37,.3); }
-.a3 .info-box { background: var(--c3b); border-color: rgba(249,168,37,.2); }
-.a3 .info-box strong { color: var(--c3); }
-
-.a4 input[type=range] { background: rgba(232,121,160,.2); }
-.a4 input[type=range]::-webkit-slider-thumb { background: var(--c4); }
-.a4 .val, .a4 .sv.main { color: var(--c4); }
-.a4 .btn.primary { background: var(--c4b); color: var(--c4); border-color: rgba(232,121,160,.3); }
-.a4 .info-box { background: var(--c4b); border-color: rgba(232,121,160,.2); }
-.a4 .info-box strong { color: var(--c4); }
-
-.a5 input[type=range] { background: rgba(167,139,250,.2); }
-.a5 input[type=range]::-webkit-slider-thumb { background: var(--c5); }
-.a5 .val, .a5 .sv.main { color: var(--c5); }
-.a5 .btn.primary { background: var(--c5b); color: var(--c5); border-color: rgba(167,139,250,.3); }
-.a5 .info-box { background: var(--c5b); border-color: rgba(167,139,250,.2); }
-.a5 .info-box strong { color: var(--c5); }
-</style>
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
 </head>
-<body>
+<body class="flex flex-col h-screen">
 
-<!-- TOP NAV -->
-<div class="topbar">
-  <div class="topbar-brand">
-    <div class="icon">⚡</div>
-    <div>
-      <h1>Rate Limiter Lab</h1>
-      <p>5 algorithms · interactive</p>
-    </div>
-  </div>
-  <div class="tabs">
-    <div class="tab active" onclick="showTab(0)" id="tab0">
-      <span class="dot" style="background:var(--c1)"></span>Token Bucket
-    </div>
-    <div class="tab" onclick="showTab(1)" id="tab1">
-      <span class="dot" style="background:var(--c2)"></span>Leaky Bucket
-    </div>
-    <div class="tab" onclick="showTab(2)" id="tab2">
-      <span class="dot" style="background:var(--c3)"></span>Fixed Window
-    </div>
-    <div class="tab" onclick="showTab(3)" id="tab3">
-      <span class="dot" style="background:var(--c4)"></span>Sliding Log
-    </div>
-    <div class="tab" onclick="showTab(4)" id="tab4">
-      <span class="dot" style="background:var(--c5)"></span>Sliding Counter
-    </div>
-    <div class="tab tab-compare" onclick="showTab(5)" id="tab5">
-      ⊞ Compare all
-    </div>
-  </div>
-</div>
-
-<div class="content">
-
-<!-- ═══════════════════════════════════════════════
-     PAGE 0 — TOKEN BUCKET
-═══════════════════════════════════════════════ -->
-<div class="page active a1" id="page0">
-  <div class="left-panel">
-    <div>
-      <div class="section-label">Configuration</div>
-      <div class="config-row"><label>Bucket capacity</label><input type="range" id="tb-cap" min="3" max="16" value="8" oninput="tbUpdate()"><span class="val" id="tb-cap-v">8</span></div>
-      <div class="config-row"><label>Refill rate (tok/s)</label><input type="range" id="tb-rate" min="1" max="6" value="2" oninput="tbUpdate()"><span class="val" id="tb-rate-v">2</span></div>
-    </div>
-    <div>
-      <div class="section-label">Bucket</div>
-      <div id="tb-wrap" class="vis-box">
-        <div id="tb-tokens" class="tokens-wrap"></div>
-        <div class="track" style="margin-top:10px"><div id="tb-fill" class="fill"></div></div>
-        <div style="display:flex;justify-content:space-between;margin-top:5px">
-          <span style="font-size:10px;color:var(--text3);font-family:var(--mono)">capacity fill</span>
-          <span style="font-size:10px;color:var(--text3);font-family:var(--mono)" id="tb-fill-lbl">8/8</span>
+    <!-- Header -->
+    <header class="bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center z-10 shrink-0">
+        <div>
+            <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-teal-400">
+                Rate Limiting Architecture
+            </h1>
+            <p class="text-sm text-slate-400 code-font mt-1">Interactive</p>
         </div>
-        <div style="margin-top:8px">
-          <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px">refill cycle</div>
-          <div class="track"><div id="tb-refill" class="fill" style="background:var(--c1);width:0%"></div></div>
+        <div class="flex gap-2">
+            <button onclick="changeTab('compare')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm font-semibold transition-colors">
+                View Comparison Table
+            </button>
         </div>
-      </div>
-    </div>
-    <div>
-      <div class="section-label">Send requests</div>
-      <div class="btn-row">
-        <button class="btn primary" onclick="tbSend(1)">×1</button>
-        <button class="btn" onclick="tbSend(3)">burst ×3</button>
-        <button class="btn" onclick="tbSend(10)">flood ×10</button>
-      </div>
-    </div>
-    <div>
-      <div class="section-label">Stats</div>
-      <div class="stats-grid">
-        <div class="stat-card"><div class="sv main" id="tb-s0">8</div><div class="sl">tokens</div></div>
-        <div class="stat-card"><div class="sv" style="color:var(--c1)" id="tb-s1">0</div><div class="sl">allowed</div></div>
-        <div class="stat-card"><div class="sv" style="color:var(--red)" id="tb-s2">0</div><div class="sl">denied</div></div>
-      </div>
-    </div>
-    <div class="info-box">
-      <strong>Token Bucket</strong> — Each request consumes 1 token. Tokens refill at a fixed rate up to capacity. Bursts are allowed as long as tokens remain. When empty, requests are rejected until refilled. Memory O(1).
-    </div>
-  </div>
-  <div class="right-panel">
-    <div class="log-hdr"><h2>Request log</h2><button class="log-clear" onclick="clearLog('tb-log')">clear</button></div>
-    <div class="log-entries" id="tb-log"><div class="empty-log">// no requests yet</div></div>
-  </div>
-</div>
+    </header>
 
-<!-- ═══════════════════════════════════════════════
-     PAGE 1 — LEAKY BUCKET
-═══════════════════════════════════════════════ -->
-<div class="page a2" id="page1">
-  <div class="left-panel">
-    <div>
-      <div class="section-label">Configuration</div>
-      <div class="config-row"><label>Queue capacity</label><input type="range" id="lb-cap" min="3" max="16" value="8" oninput="lbUpdate()"><span class="val" id="lb-cap-v">8</span></div>
-      <div class="config-row"><label>Process rate (req/s)</label><input type="range" id="lb-rate" min="1" max="5" value="2" oninput="lbUpdate()"><span class="val" id="lb-rate-v">2</span></div>
-    </div>
-    <div>
-      <div class="section-label">Queue visualization</div>
-      <div class="vis-box">
-        <div style="display:flex;align-items:flex-end;justify-content:center;gap:16px;padding:4px 0">
-          <!-- Bucket fill bar -->
-          <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
-            <span style="font-size:9px;color:var(--text3);font-family:var(--mono)" id="lb-fill-pct">0%</span>
-            <div style="width:36px;height:100px;border:1px solid var(--border2);border-radius:6px;background:var(--surface3);overflow:hidden;position:relative;display:flex;align-items:flex-end">
-              <div id="lb-water" style="width:100%;background:rgba(91,143,249,0.3);transition:height .4s ease;height:0%"></div>
+    <!-- Main Layout -->
+    <div class="flex flex-1 overflow-hidden">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col p-4 gap-2 overflow-y-auto shrink-0 z-10">
+            <h2 class="text-xs uppercase tracking-wider text-slate-500 font-bold mb-2">Algorithms</h2>
+            <button onclick="changeTab('token-bucket')" id="tab-token-bucket" class="tab-btn w-full text-left px-4 py-3 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 active">
+                1. Token Bucket
+            </button>
+            <button onclick="changeTab('leaky-bucket')" id="tab-leaky-bucket" class="tab-btn w-full text-left px-4 py-3 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800">
+                2. Leaky Bucket
+            </button>
+            <button onclick="changeTab('fixed-window')" id="tab-fixed-window" class="tab-btn w-full text-left px-4 py-3 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800">
+                3. Fixed Window Counter
+            </button>
+            <button onclick="changeTab('sliding-log')" id="tab-sliding-log" class="tab-btn w-full text-left px-4 py-3 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800">
+                4. Sliding Window Log
+            </button>
+            <button onclick="changeTab('sliding-counter')" id="tab-sliding-counter" class="tab-btn w-full text-left px-4 py-3 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800">
+                5. Sliding Window Counter
+            </button>
+        </aside>
+
+        <!-- Content Area -->
+        <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative bg-slate-950">
+            
+            <!-- Left: Documentation -->
+            <div class="w-full lg:w-5/12 p-6 overflow-y-auto border-r border-slate-800 custom-scrollbar" id="doc-container">
+                <!-- Content injected via JS -->
             </div>
-            <span style="font-size:9px;color:var(--text3);font-family:var(--mono)">queue</span>
-          </div>
-          <div style="flex:1">
-            <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:5px">queued requests</div>
-            <div id="lb-qdots" style="display:flex;flex-wrap:wrap;min-height:30px;gap:3px"></div>
-            <div style="margin-top:10px;font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px">drain rate</div>
-            <div class="track"><div id="lb-drain" class="fill" style="background:var(--c2);width:0%"></div></div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div>
-      <div class="section-label">Send requests</div>
-      <div class="btn-row">
-        <button class="btn primary" onclick="lbSend(1)">×1</button>
-        <button class="btn" onclick="lbSend(4)">burst ×4</button>
-        <button class="btn" onclick="lbSend(15)">flood ×15</button>
-      </div>
-    </div>
-    <div>
-      <div class="section-label">Stats</div>
-      <div class="stats-grid">
-        <div class="stat-card"><div class="sv main" id="lb-s0">0</div><div class="sl">in queue</div></div>
-        <div class="stat-card"><div class="sv" style="color:var(--c2)" id="lb-s1">0</div><div class="sl">processed</div></div>
-        <div class="stat-card"><div class="sv" style="color:var(--red)" id="lb-s2">0</div><div class="sl">dropped</div></div>
-      </div>
-    </div>
-    <div class="info-box">
-      <strong>Leaky Bucket</strong> — Requests enter a fixed-size FIFO queue. The queue drains at a constant rate regardless of burst. When full, new arrivals overflow (dropped). Output is always smooth — no downstream burst possible.
-    </div>
-  </div>
-  <div class="right-panel">
-    <div class="log-hdr"><h2>Request log</h2><button class="log-clear" onclick="clearLog('lb-log')">clear</button></div>
-    <div class="log-entries" id="lb-log"><div class="empty-log">// no requests yet</div></div>
-  </div>
-</div>
 
-<!-- ═══════════════════════════════════════════════
-     PAGE 2 — FIXED WINDOW COUNTER
-═══════════════════════════════════════════════ -->
-<div class="page a3" id="page2">
-  <div class="left-panel">
-    <div>
-      <div class="section-label">Configuration</div>
-      <div class="config-row"><label>Max requests/window</label><input type="range" id="fw-lim" min="3" max="20" value="10" oninput="fwUpdate()"><span class="val" id="fw-lim-v">10</span></div>
-      <div class="config-row"><label>Window size (s)</label><input type="range" id="fw-win" min="5" max="20" value="10" oninput="fwUpdate()"><span class="val" id="fw-win-v">10</span></div>
-    </div>
-    <div>
-      <div class="section-label">Current window</div>
-      <div class="vis-box">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">requests used</span>
-          <span style="font-family:var(--mono);font-size:12px;font-weight:600" id="fw-count-lbl">0/10</span>
-        </div>
-        <div class="win-block"><div id="fw-bar" class="win-fill"></div><div id="fw-bar-txt" class="win-label">0%</div></div>
-        <div style="margin-top:10px;font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px">window timer (resets in <span id="fw-cd">10.0</span>s)</div>
-        <div class="track"><div id="fw-timer" class="fill" style="background:var(--c3);width:100%"></div></div>
-        <div id="fw-alert" style="display:none;margin-top:10px;background:rgba(240,112,112,.08);border:1px solid rgba(240,112,112,.2);border-radius:6px;padding:8px;font-size:10px;color:var(--red);font-family:var(--mono)">
-          ⚠ Boundary burst risk — up to 2× limit across window edge
-        </div>
-      </div>
-    </div>
-    <div>
-      <div class="section-label">Send requests</div>
-      <div class="btn-row">
-        <button class="btn primary" onclick="fwSend(1)">×1</button>
-        <button class="btn" onclick="fwSend(5)">burst ×5</button>
-        <button class="btn" onclick="fwSend(15)">flood ×15</button>
-      </div>
-    </div>
-    <div>
-      <div class="section-label">Stats</div>
-      <div class="stats-grid">
-        <div class="stat-card"><div class="sv main" id="fw-s0">0</div><div class="sl">this window</div></div>
-        <div class="stat-card"><div class="sv" style="color:var(--c1)" id="fw-s1">0</div><div class="sl">allowed</div></div>
-        <div class="stat-card"><div class="sv" style="color:var(--red)" id="fw-s2">0</div><div class="sl">denied</div></div>
-      </div>
-    </div>
-    <div class="info-box">
-      <strong>Fixed Window</strong> — Time split into fixed slots; counter resets each slot. Simple O(1). Vulnerable to boundary burst: send 10 requests just before reset + 10 just after = 20 requests in ~2s despite a limit of 10.
-    </div>
-  </div>
-  <div class="right-panel">
-    <div class="log-hdr"><h2>Request log</h2><button class="log-clear" onclick="clearLog('fw-log')">clear</button></div>
-    <div class="log-entries" id="fw-log"><div class="empty-log">// no requests yet</div></div>
-  </div>
-</div>
+            <!-- Right: Interactive Simulator (Hidden on Comparison Tab) -->
+            <div class="w-full lg:w-7/12 flex flex-col" id="simulator-container">
+                <!-- Canvas Area -->
+                <div id="canvas-container" class="flex-1 relative overflow-hidden">
+                    <canvas id="simCanvas" class="absolute inset-0 w-full h-full"></canvas>
+                    
+                    <!-- Sim Overlay Stats -->
+                    <div class="absolute top-4 left-4 bg-slate-900/80 backdrop-blur border border-slate-700 p-3 rounded-lg text-sm code-font pointer-events-none">
+                        <div class="text-slate-400 mb-1">Live Metrics</div>
+                        <div class="flex gap-4">
+                            <div>Accepted: <span id="stat-accepted" class="text-green-400 font-bold">0</span></div>
+                            <div>Rejected: <span id="stat-rejected" class="text-red-400 font-bold">0</span></div>
+                        </div>
+                    </div>
+                </div>
 
-<!-- ═══════════════════════════════════════════════
-     PAGE 3 — SLIDING WINDOW LOG
-═══════════════════════════════════════════════ -->
-<div class="page a4" id="page3">
-  <div class="left-panel">
-    <div>
-      <div class="section-label">Configuration</div>
-      <div class="config-row"><label>Max requests</label><input type="range" id="sl-lim" min="3" max="20" value="8" oninput="slUpdate()"><span class="val" id="sl-lim-v">8</span></div>
-      <div class="config-row"><label>Window size (s)</label><input type="range" id="sl-win" min="5" max="30" value="10" oninput="slUpdate()"><span class="val" id="sl-win-v">10</span></div>
-    </div>
-    <div>
-      <div class="section-label">Rolling window timeline (30s view)</div>
-      <div class="vis-box">
-        <div class="timeline-wrap" id="sl-timeline">
-          <div id="sl-tl-highlight" class="tl-highlight" style="background:rgba(232,121,160,0.08);border-left:1.5px solid rgba(232,121,160,0.5);border-right:1.5px solid rgba(232,121,160,0.5)"></div>
-          <div id="sl-tl-dots"></div>
-          <div class="tl-label" style="bottom:3px;left:6px">−30s</div>
-          <div class="tl-label" style="bottom:3px;right:6px">now</div>
-        </div>
-        <div style="margin-top:8px;display:flex;justify-content:space-between">
-          <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">● in window &nbsp; ○ expired</span>
-          <span style="font-family:var(--mono);font-size:10px" id="sl-in-win-lbl">0 / 8</span>
-        </div>
-        <div style="margin-top:10px;font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:3px">log memory used</div>
-        <div class="track"><div id="sl-mem-bar" class="fill" style="background:var(--c4);width:0%"></div></div>
-        <div style="font-size:9px;color:var(--text3);font-family:var(--mono);margin-top:3px">stored timestamps: <span id="sl-mem-count">0</span></div>
-      </div>
-    </div>
-    <div>
-      <div class="section-label">Send requests</div>
-      <div class="btn-row">
-        <button class="btn primary" onclick="slSend(1)">×1</button>
-        <button class="btn" onclick="slSend(4)">burst ×4</button>
-        <button class="btn" onclick="slSend(12)">flood ×12</button>
-      </div>
-    </div>
-    <div>
-      <div class="section-label">Stats</div>
-      <div class="stats-grid">
-        <div class="stat-card"><div class="sv main" id="sl-s0">0</div><div class="sl">in window</div></div>
-        <div class="stat-card"><div class="sv" style="color:var(--c1)" id="sl-s1">0</div><div class="sl">allowed</div></div>
-        <div class="stat-card"><div class="sv" style="color:var(--red)" id="sl-s2">0</div><div class="sl">denied</div></div>
-      </div>
-    </div>
-    <div class="info-box">
-      <strong>Sliding Window Log</strong> — Stores every request timestamp. On each request, prunes expired entries then checks count. Perfectly accurate, no boundary burst. Memory cost O(n) — expensive at high traffic.
-    </div>
-  </div>
-  <div class="right-panel">
-    <div class="log-hdr"><h2>Request log</h2><button class="log-clear" onclick="clearLog('sl-log')">clear</button></div>
-    <div class="log-entries" id="sl-log"><div class="empty-log">// no requests yet</div></div>
-  </div>
-</div>
+                <!-- Controls Area -->
+                <div class="h-64 bg-slate-900 border-t border-slate-800 p-6 flex flex-col gap-4 shrink-0 z-10 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.3)]">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-lg font-semibold flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+                            Simulation Controls
+                        </h3>
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm text-slate-400">Auto Traffic</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="auto-traffic" class="sr-only peer" checked>
+                                <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                            </label>
+                        </div>
+                    </div>
 
-<!-- ═══════════════════════════════════════════════
-     PAGE 4 — SLIDING WINDOW COUNTER
-═══════════════════════════════════════════════ -->
-<div class="page a5" id="page4">
-  <div class="left-panel">
-    <div>
-      <div class="section-label">Configuration</div>
-      <div class="config-row"><label>Max requests</label><input type="range" id="sc-lim" min="5" max="30" value="10" oninput="scUpdate()"><span class="val" id="sc-lim-v">10</span></div>
-      <div class="config-row"><label>Window size (s)</label><input type="range" id="sc-win" min="5" max="20" value="10" oninput="scUpdate()"><span class="val" id="sc-win-v">10</span></div>
-    </div>
-    <div>
-      <div class="section-label">Weighted estimate</div>
-      <div class="vis-box">
-        <div class="formula">
-          <div class="dim">estimate = prev × overlap + curr</div>
-          <div>= <span class="hi" id="sc-fp" style="color:var(--c2)">0</span> × <span class="hi" id="sc-fw" style="color:var(--c5)">1.00</span> + <span class="hi" id="sc-fc" style="color:var(--c1)">0</span> = <span class="hi" id="sc-fe" style="color:var(--c5)">0.0</span></div>
-        </div>
-        <div style="margin-top:10px;display:flex;gap:4px;border-radius:5px;overflow:hidden;height:24px;border:1px solid var(--border2)">
-          <div id="sc-prev-bar" style="background:rgba(91,143,249,0.2);transition:width .25s;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--c2)" id="sc-pb"></div>
-          <div id="sc-curr-bar" style="background:rgba(167,139,250,0.2);transition:width .25s;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--c5)" id="sc-cb"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3);font-family:var(--mono);margin-top:3px">
-          <span>← previous window</span><span>current window →</span>
-        </div>
-        <div style="margin-top:10px;font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:3px">
-          window timer (resets in <span id="sc-cd">10.0</span>s · weight = <span id="sc-wd">1.00</span>)
-        </div>
-        <div class="track"><div id="sc-timer" class="fill" style="background:var(--c5);width:100%"></div></div>
-      </div>
-    </div>
-    <div>
-      <div class="section-label">Send requests</div>
-      <div class="btn-row">
-        <button class="btn primary" onclick="scSend(1)">×1</button>
-        <button class="btn" onclick="scSend(5)">burst ×5</button>
-        <button class="btn" onclick="scSend(20)">flood ×20</button>
-      </div>
-    </div>
-    <div>
-      <div class="section-label">Stats</div>
-      <div class="stats-grid">
-        <div class="stat-card"><div class="sv main" id="sc-s0">0.0</div><div class="sl">estimate</div></div>
-        <div class="stat-card"><div class="sv" style="color:var(--c1)" id="sc-s1">0</div><div class="sl">allowed</div></div>
-        <div class="stat-card"><div class="sv" style="color:var(--red)" id="sc-s2">0</div><div class="sl">denied</div></div>
-      </div>
-    </div>
-    <div class="info-box">
-      <strong>Sliding Window Counter</strong> — Stores only 2 counters (prev + curr). Rolling estimate = prev × overlap_weight + curr. O(1) memory, near-accurate. ~5% error assuming uniform distribution. The production standard.
-    </div>
-  </div>
-  <div class="right-panel">
-    <div class="log-hdr"><h2>Request log</h2><button class="log-clear" onclick="clearLog('sc-log')">clear</button></div>
-    <div class="log-entries" id="sc-log"><div class="empty-log">// no requests yet</div></div>
-  </div>
-</div>
+                    <div class="grid grid-cols-2 gap-6">
+                        <!-- Dynamic Controls injected via JS -->
+                        <div id="dynamic-controls" class="col-span-1 space-y-4">
+                            <!-- Sliders go here -->
+                        </div>
 
-<!-- ═══════════════════════════════════════════════
-     PAGE 5 — COMPARE
-═══════════════════════════════════════════════ -->
-<div class="page" id="page5" style="overflow-y:auto;display:none">
-  <div class="compare-grid">
+                        <!-- Manual Actions & Log -->
+                        <div class="col-span-1 flex flex-col gap-3">
+                            <button id="btn-send-req" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold shadow-lg shadow-blue-500/30 transition-all active:scale-95 flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                                Send Manual Request
+                            </button>
+                            <div class="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2 overflow-y-auto text-xs code-font" id="request-log">
+                                <!-- Logs -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-    <div class="ccard">
-      <div class="ccard-hdr"><div class="ccard-dot" style="background:var(--c1)"></div><div><div class="ccard-name">Token Bucket</div><div class="ccard-sub">Token + refill rate</div></div></div>
-      <div class="ccard-row"><span class="ccard-key">Burst handling</span><span class="ccard-pill pill-g">Allowed</span></div>
-      <div class="ccard-row"><span class="ccard-key">Memory</span><span class="ccard-pill pill-g">O(1)</span></div>
-      <div class="ccard-row"><span class="ccard-key">Accuracy</span><div class="stars"><div class="star" style="background:var(--c1)"></div><div class="star" style="background:var(--c1)"></div><div class="star" style="background:var(--c1)"></div><div class="star" style="background:var(--c1)"></div><div class="star" style="background:var(--surface3)"></div></div></div>
-      <div class="ccard-row"><span class="ccard-key">Complexity</span><span class="ccard-pill pill-g">Low</span></div>
-      <div class="ccard-row"><span class="ccard-key">Boundary burst</span><span class="ccard-pill pill-g">No</span></div>
-      <div class="ccard-row"><span class="ccard-key">Best for</span><span style="font-size:10px;color:var(--text2)">APIs needing burst tolerance</span></div>
-      <div class="pros-cons">
-        <div class="pro">✓ Natural burst support · Simple · Intuitive</div>
-        <div class="pro">✓ Works well for bursty clients (mobile, retries)</div>
-        <div class="con">✗ 2 params to tune · Large burst at start possible</div>
-      </div>
+            <!-- Comparison Table Container (Hidden by default) -->
+            <div id="comparison-container" class="hidden w-full h-full bg-slate-900 p-8 overflow-y-auto">
+                <h2 class="text-3xl font-bold mb-6 text-white">Algorithm Comparison Matrix</h2>
+                <div class="overflow-x-auto rounded-lg border border-slate-700">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-800 text-slate-300 uppercase text-sm leading-normal">
+                                <th class="py-3 px-6 border-b border-slate-700">Algorithm</th>
+                                <th class="py-3 px-6 border-b border-slate-700">Memory Usage</th>
+                                <th class="py-3 px-6 border-b border-slate-700">Accuracy</th>
+                                <th class="py-3 px-6 border-b border-slate-700">Allows Bursts</th>
+                                <th class="py-3 px-6 border-b border-slate-700">Best Used For</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-slate-300 text-sm font-light">
+                            <tr class="border-b border-slate-700 hover:bg-slate-800/50">
+                                <td class="py-4 px-6 font-bold text-blue-400">Token Bucket</td>
+                                <td class="py-4 px-6">Low (Just tokens & timestamp)</td>
+                                <td class="py-4 px-6">High</td>
+                                <td class="py-4 px-6 text-green-400">Yes (Up to capacity)</td>
+                                <td class="py-4 px-6">General API limits, APIs requiring burst allowances (Amazon, Stripe).</td>
+                            </tr>
+                            <tr class="border-b border-slate-700 hover:bg-slate-800/50">
+                                <td class="py-4 px-6 font-bold text-teal-400">Leaky Bucket</td>
+                                <td class="py-4 px-6">Medium (Queue of requests)</td>
+                                <td class="py-4 px-6">High</td>
+                                <td class="py-4 px-6 text-red-400">No (Smooths traffic)</td>
+                                <td class="py-4 px-6">Traffic shaping, protecting strict databases, networking (Shopify).</td>
+                            </tr>
+                            <tr class="border-b border-slate-700 hover:bg-slate-800/50">
+                                <td class="py-4 px-6 font-bold text-yellow-400">Fixed Window Counter</td>
+                                <td class="py-4 px-6">Very Low (Just an integer)</td>
+                                <td class="py-4 px-6 text-red-400">Low (Boundary Spikes)</td>
+                                <td class="py-4 px-6 text-green-400">Yes (But can exceed limits)</td>
+                                <td class="py-4 px-6">Simple systems, strict quotas where boundary spikes are acceptable.</td>
+                            </tr>
+                            <tr class="border-b border-slate-700 hover:bg-slate-800/50">
+                                <td class="py-4 px-6 font-bold text-purple-400">Sliding Window Log</td>
+                                <td class="py-4 px-6 text-red-400">High (Stores timestamps)</td>
+                                <td class="py-4 px-6 text-green-400">Perfect</td>
+                                <td class="py-4 px-6 text-green-400">Yes</td>
+                                <td class="py-4 px-6">Strict, high-accuracy limits for low-volume endpoints.</td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/50">
+                                <td class="py-4 px-6 font-bold text-pink-400">Sliding Window Counter</td>
+                                <td class="py-4 px-6 text-green-400">Low (Two integers)</td>
+                                <td class="py-4 px-6">Good (Approximation)</td>
+                                <td class="py-4 px-6 text-green-400">Yes</td>
+                                <td class="py-4 px-6">High scale, pragmatic middle-ground. Excellent balance (Cloudflare).</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
     </div>
 
-    <div class="ccard">
-      <div class="ccard-hdr"><div class="ccard-dot" style="background:var(--c2)"></div><div><div class="ccard-name">Leaky Bucket</div><div class="ccard-sub">Fixed-rate queue drain</div></div></div>
-      <div class="ccard-row"><span class="ccard-key">Burst handling</span><span class="ccard-pill pill-y">Queued</span></div>
-      <div class="ccard-row"><span class="ccard-key">Memory</span><span class="ccard-pill pill-y">O(queue size)</span></div>
-      <div class="ccard-row"><span class="ccard-key">Accuracy</span><div class="stars"><div class="star" style="background:var(--c2)"></div><div class="star" style="background:var(--c2)"></div><div class="star" style="background:var(--c2)"></div><div class="star" style="background:var(--c2)"></div><div class="star" style="background:var(--surface3)"></div></div></div>
-      <div class="ccard-row"><span class="ccard-key">Complexity</span><span class="ccard-pill pill-g">Low</span></div>
-      <div class="ccard-row"><span class="ccard-key">Boundary burst</span><span class="ccard-pill pill-g">No</span></div>
-      <div class="ccard-row"><span class="ccard-key">Best for</span><span style="font-size:10px;color:var(--text2)">Smooth downstream (payments, SMS)</span></div>
-      <div class="pros-cons">
-        <div class="pro">✓ Perfectly smooth output · Protects downstream</div>
-        <div class="con">✗ Bursts add latency · Queue memory · Drops under flood</div>
-      </div>
-    </div>
+    <script>
+        // ==========================================
+        // CONTENT DATA (The Architect's Explanations)
+        // ==========================================
+        const contentData = {
+            'token-bucket': {
+                title: "Token Bucket",
+                subtitle: "The Industry Standard (Stripe, Amazon)",
+                flow: `
+                    <p class="mb-3">Welcome to the <strong>Token Bucket</strong> algorithm. Imagine a bucket filled with a specific number of tokens. Every time a request comes in, it tries to grab a token from the bucket.</p>
+                    <ol class="list-decimal list-inside space-y-2 text-slate-300 ml-2 mb-4">
+                        <li>A bucket is given a predefined <strong>Capacity</strong> (e.g., 10 tokens).</li>
+                        <li>Tokens are added to the bucket at a fixed <strong>Refill Rate</strong> (e.g., 2 tokens/sec).</li>
+                        <li>If the bucket is full, extra tokens are discarded.</li>
+                        <li>When a request arrives, it takes 1 token. If the bucket has tokens, the request is <strong>Allowed</strong>.</li>
+                        <li>If the bucket is empty, the request is <strong>Dropped/Rejected</strong>.</li>
+                    </ol>
+                `,
+                prosCons: `
+                    <div class="grid grid-cols-2 gap-4 mt-6">
+                        <div class="bg-green-900/20 border border-green-800/50 p-4 rounded-lg">
+                            <h4 class="text-green-400 font-bold mb-2 flex items-center gap-2">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg> Pros
+                            </h4>
+                            <ul class="text-sm space-y-1 text-slate-300 list-disc list-inside">
+                                <li><strong>Memory Efficient:</strong> Only stores 2 variables per user (tokens left, last refill timestamp).</li>
+                                <li><strong>Allows Bursts:</strong> If a user hasn't made requests in a while, they can use their full bucket capacity instantly.</li>
+                            </ul>
+                        </div>
+                        <div class="bg-red-900/20 border border-red-800/50 p-4 rounded-lg">
+                            <h4 class="text-red-400 font-bold mb-2 flex items-center gap-2">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg> Cons
+                            </h4>
+                            <ul class="text-sm space-y-1 text-slate-300 list-disc list-inside">
+                                <li>Parameter tuning (capacity vs refill rate) can be challenging.</li>
+                            </ul>
+                        </div>
+                    </div>
+                `,
+                controls: [
+                    { id: 'tb-capacity', label: 'Bucket Capacity', min: 1, max: 20, val: 10 },
+                    { id: 'tb-refill', label: 'Refill Rate (tokens/sec)', min: 1, max: 10, val: 3 },
+                    { id: 'tb-traffic', label: 'Incoming Traffic (req/sec)', min: 1, max: 20, val: 5 }
+                ]
+            },
+            'leaky-bucket': {
+                title: "Leaky Bucket",
+                subtitle: "The Traffic Shaper (Shopify, NGINX)",
+                flow: `
+                    <p class="mb-3">The <strong>Leaky Bucket</strong> algorithm is essentially a First-In-First-Out (FIFO) queue. Imagine a bucket with a hole at the bottom. Water (requests) pours in, but it only drips out at a constant, predictable rate.</p>
+                    <ol class="list-decimal list-inside space-y-2 text-slate-300 ml-2 mb-4">
+                        <li>Requests arrive and are added to the queue (the bucket).</li>
+                        <li>If the queue is full (exceeds <strong>Capacity</strong>), new requests are immediately <strong>Rejected</strong> (overflow).</li>
+                        <li>The system processes (leaks) requests from the queue at a fixed, constant <strong>Leak Rate</strong>.</li>
+                    </ol>
+                `,
+                prosCons: `
+                    <div class="grid grid-cols-2 gap-4 mt-6">
+                        <div class="bg-green-900/20 border border-green-800/50 p-4 rounded-lg">
+                            <h4 class="text-green-400 font-bold mb-2">Pros</h4>
+                            <ul class="text-sm space-y-1 text-slate-300 list-disc list-inside">
+                                <li><strong>Smooths Traffic:</strong> Guarantees a stable processing rate, protecting downstream services from spikes.</li>
+                                <li>Memory efficient (bounded queue size).</li>
+                            </ul>
+                        </div>
+                        <div class="bg-red-900/20 border border-red-800/50 p-4 rounded-lg">
+                            <h4 class="text-red-400 font-bold mb-2">Cons</h4>
+                            <ul class="text-sm space-y-1 text-slate-300 list-disc list-inside">
+                                <li><strong>No Bursts:</strong> Even if the system is idle, a burst of traffic will be processed slowly, potentially causing timeouts for users.</li>
+                            </ul>
+                        </div>
+                    </div>
+                `,
+                controls: [
+                    { id: 'lb-capacity', label: 'Queue Capacity', min: 1, max: 20, val: 10 },
+                    { id: 'lb-leak', label: 'Leak Rate (process/sec)', min: 1, max: 10, val: 2 },
+                    { id: 'lb-traffic', label: 'Incoming Traffic (req/sec)', min: 1, max: 20, val: 4 }
+                ]
+            },
+            'fixed-window': {
+                title: "Fixed Window Counter",
+                subtitle: "The Simple Baseline",
+                flow: `
+                    <p class="mb-3">The <strong>Fixed Window Counter</strong> divides time into distinct, non-overlapping intervals (windows) of fixed size (e.g., 1 minute). Each window has a counter.</p>
+                    <ol class="list-decimal list-inside space-y-2 text-slate-300 ml-2 mb-4">
+                        <li>System maps current time to a window (e.g., 10:00:00 to 10:00:59).</li>
+                        <li>If the counter is below the <strong>Limit</strong>, increment the counter and <strong>Allow</strong>.</li>
+                        <li>If the counter reaches the limit, <strong>Reject</strong> all requests until the window resets.</li>
+                    </ol>
+                    <p class="mt-2 text-yellow-400 text-sm italic"><strong>The Boundary Problem:</strong> Watch the simulation carefully. If a burst of traffic hits right before the window resets, and another burst right after, you can actually allow 2x the limit in a short timeframe.</p>
+                `,
+                prosCons: `
+                    <div class="grid grid-cols-2 gap-4 mt-6">
+                        <div class="bg-green-900/20 border border-green-800/50 p-4 rounded-lg">
+                            <h4 class="text-green-400 font-bold mb-2">Pros</h4>
+                            <ul class="text-sm space-y-1 text-slate-300 list-disc list-inside">
+                                <li>Extremely memory efficient (just a timestamp and integer counter).</li>
+                                <li>Very easy to implement (e.g., Redis INCR + EXPIRE).</li>
+                            </ul>
+                        </div>
+                        <div class="bg-red-900/20 border border-red-800/50 p-4 rounded-lg">
+                            <h4 class="text-red-400 font-bold mb-2">Cons</h4>
+                            <ul class="text-sm space-y-1 text-slate-300 list-disc list-inside">
+                                <li><strong>Boundary Spikes:</strong> Can overwhelm the system if traffic clusters at window edges.</li>
+                            </ul>
+                        </div>
+                    </div>
+                `,
+                controls: [
+                    { id: 'fw-limit', label: 'Requests per Window', min: 1, max: 20, val: 5 },
+                    { id: 'fw-window', label: 'Window Size (sec)', min: 2, max: 10, val: 4 },
+                    { id: 'fw-traffic', label: 'Incoming Traffic (req/sec)', min: 1, max: 15, val: 2 }
+                ]
+            },
+            'sliding-log': {
+                title: "Sliding Window Log",
+                subtitle: "The Mathematically Perfect Limiter",
+                flow: `
+                    <p class="mb-3">To fix the boundary problem of the Fixed Window, the <strong>Sliding Window Log</strong> keeps an exact log of timestamps for every allowed request.</p>
+                    <ol class="list-decimal list-inside space-y-2 text-slate-300 ml-2 mb-4">
+                        <li>When a request arrives, the system drops all logs older than <code>CurrentTime - WindowSize</code>.</li>
+                        <li>It counts the remaining logs in the array.</li>
+                        <li>If the count < <strong>Limit</strong>, log the current timestamp and <strong>Allow</strong>.</li>
+                        <li>Else, <strong>Reject</strong>.</li>
+                    </ol>
+                    <p class="mt-2 text-sm text-slate-400">Notice in the simulation how the window smoothly glides across the timeline, perfectly enforcing the limit at any given millisecond.</p>
+                `,
+                prosCons: `
+                    <div class="grid grid-cols-2 gap-4 mt-6">
+                        <div class="bg-green-900/20 border border-green-800/50 p-4 rounded-lg">
+                            <h4 class="text-green-400 font-bold mb-2">Pros</h4>
+                            <ul class="text-sm space-y-1 text-slate-300 list-disc list-inside">
+                                <li><strong>Perfect Accuracy:</strong> Completely eliminates the boundary spike problem. Limits are strictly enforced.</li>
+                            </ul>
+                        </div>
+                        <div class="bg-red-900/20 border border-red-800/50 p-4 rounded-lg">
+                            <h4 class="text-red-400 font-bold mb-2">Cons</h4>
+                            <ul class="text-sm space-y-1 text-slate-300 list-disc list-inside">
+                                <li><strong>High Memory footprint:</strong> Must store a timestamp for <em>every</em> request. Unsuitable for millions of users with high limits.</li>
+                                <li>Computationally expensive at scale.</li>
+                            </ul>
+                        </div>
+                    </div>
+                `,
+                controls: [
+                    { id: 'sl-limit', label: 'Max Requests', min: 1, max: 20, val: 5 },
+                    { id: 'sl-window', label: 'Window Size (sec)', min: 2, max: 10, val: 5 },
+                    { id: 'sl-traffic', label: 'Incoming Traffic (req/sec)', min: 1, max: 15, val: 3 }
+                ]
+            },
+            'sliding-counter': {
+                title: "Sliding Window Counter",
+                subtitle: "The Pragmatic Hybrid (Cloudflare)",
+                flow: `
+                    <p class="mb-3">The <strong>Sliding Window Counter</strong> combines the low memory footprint of the Fixed Window with the smoothness of the Sliding Log. It estimates traffic based on a weighted average of the previous and current windows.</p>
+                    <div class="bg-slate-900 border border-slate-700 p-3 rounded-lg mb-4 text-sm code-font text-blue-300 overflow-x-auto">
+                        Weight = (Current_Time % Window_Size) / Window_Size<br>
+                        Est_Traffic = Prev_Window_Count * (1 - Weight) + Curr_Window_Count
+                    </div>
+                    <ol class="list-decimal list-inside space-y-2 text-slate-300 ml-2 mb-4">
+                        <li>If <code>Est_Traffic &lt; Limit</code>, increment Curr_Window_Count and <strong>Allow</strong>.</li>
+                        <li>Otherwise, <strong>Reject</strong>.</li>
+                    </ol>
+                `,
+                prosCons: `
+                    <div class="grid grid-cols-2 gap-4 mt-6">
+                        <div class="bg-green-900/20 border border-green-800/50 p-4 rounded-lg">
+                            <h4 class="text-green-400 font-bold mb-2">Pros</h4>
+                            <ul class="text-sm space-y-1 text-slate-300 list-disc list-inside">
+                                <li><strong>Highly Scalable:</strong> Only needs to store 2 numbers and a timestamp (Prev count, Curr count).</li>
+                                <li>Smooths out boundary spikes significantly better than Fixed Window.</li>
+                            </ul>
+                        </div>
+                        <div class="bg-red-900/20 border border-red-800/50 p-4 rounded-lg">
+                            <h4 class="text-red-400 font-bold mb-2">Cons</h4>
+                            <ul class="text-sm space-y-1 text-slate-300 list-disc list-inside">
+                                <li>It's an approximation. Assumes traffic in the previous window was evenly distributed. (In reality, Cloudflare found this approximation is highly accurate for real-world traffic).</li>
+                            </ul>
+                        </div>
+                    </div>
+                `,
+                controls: [
+                    { id: 'sc-limit', label: 'Limit per Window', min: 1, max: 50, val: 10 },
+                    { id: 'sc-window', label: 'Window Size (sec)', min: 2, max: 10, val: 4 },
+                    { id: 'sc-traffic', label: 'Incoming Traffic (req/sec)', min: 1, max: 20, val: 5 }
+                ]
+            }
+        };
 
-    <div class="ccard">
-      <div class="ccard-hdr"><div class="ccard-dot" style="background:var(--c3)"></div><div><div class="ccard-name">Fixed Window Counter</div><div class="ccard-sub">Counter per time slot</div></div></div>
-      <div class="ccard-row"><span class="ccard-key">Burst handling</span><span class="ccard-pill pill-r">Vulnerable</span></div>
-      <div class="ccard-row"><span class="ccard-key">Memory</span><span class="ccard-pill pill-g">O(1)</span></div>
-      <div class="ccard-row"><span class="ccard-key">Accuracy</span><div class="stars"><div class="star" style="background:var(--c3)"></div><div class="star" style="background:var(--c3)"></div><div class="star" style="background:var(--surface3)"></div><div class="star" style="background:var(--surface3)"></div><div class="star" style="background:var(--surface3)"></div></div></div>
-      <div class="ccard-row"><span class="ccard-key">Complexity</span><span class="ccard-pill pill-g">Lowest</span></div>
-      <div class="ccard-row"><span class="ccard-key">Boundary burst</span><span class="ccard-pill pill-r">Yes — 2×</span></div>
-      <div class="ccard-row"><span class="ccard-key">Best for</span><span style="font-size:10px;color:var(--text2)">Simple quotas, billing cycles</span></div>
-      <div class="pros-cons">
-        <div class="pro">✓ Dead simple · 1 Redis INCR · Works everywhere</div>
-        <div class="con">✗ Boundary burst allows 2× · Synchronized resets spike traffic</div>
-      </div>
-    </div>
+        // ==========================================
+        // UI MANAGEMENT
+        // ==========================================
+        let currentAlg = 'token-bucket';
+        let isAutoTraffic = true;
+        let activeSim = null;
 
-    <div class="ccard">
-      <div class="ccard-hdr"><div class="ccard-dot" style="background:var(--c4)"></div><div><div class="ccard-name">Sliding Window Log</div><div class="ccard-sub">Timestamp log (sorted set)</div></div></div>
-      <div class="ccard-row"><span class="ccard-key">Burst handling</span><span class="ccard-pill pill-g">Blocked</span></div>
-      <div class="ccard-row"><span class="ccard-key">Memory</span><span class="ccard-pill pill-r">O(n requests)</span></div>
-      <div class="ccard-row"><span class="ccard-key">Accuracy</span><div class="stars"><div class="star" style="background:var(--c4)"></div><div class="star" style="background:var(--c4)"></div><div class="star" style="background:var(--c4)"></div><div class="star" style="background:var(--c4)"></div><div class="star" style="background:var(--c4)"></div></div></div>
-      <div class="ccard-row"><span class="ccard-key">Complexity</span><span class="ccard-pill pill-y">Medium</span></div>
-      <div class="ccard-row"><span class="ccard-key">Boundary burst</span><span class="ccard-pill pill-g">No</span></div>
-      <div class="ccard-row"><span class="ccard-key">Best for</span><span style="font-size:10px;color:var(--text2)">Low-traffic, precision critical</span></div>
-      <div class="pros-cons">
-        <div class="pro">✓ Most accurate · No boundary burst · Fair per-user</div>
-        <div class="con">✗ Memory grows with traffic · Redis sorted set overhead</div>
-      </div>
-    </div>
+        const docContainer = document.getElementById('doc-container');
+        const dynamicControls = document.getElementById('dynamic-controls');
+        const requestLog = document.getElementById('request-log');
+        const statAccepted = document.getElementById('stat-accepted');
+        const statRejected = document.getElementById('stat-rejected');
+        const btnSendReq = document.getElementById('btn-send-req');
+        const autoTrafficToggle = document.getElementById('auto-traffic');
+        
+        // Canvas Setup
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+            if(activeSim) activeSim.onResize(canvas.width, canvas.height);
+        }
+        window.addEventListener('resize', resizeCanvas);
 
-    <div class="ccard" style="border-color:rgba(167,139,250,0.3)">
-      <div style="font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--c5);font-family:var(--mono);margin-bottom:8px">★ PRODUCTION DEFAULT</div>
-      <div class="ccard-hdr"><div class="ccard-dot" style="background:var(--c5)"></div><div><div class="ccard-name">Sliding Window Counter</div><div class="ccard-sub">Weighted interpolation</div></div></div>
-      <div class="ccard-row"><span class="ccard-key">Burst handling</span><span class="ccard-pill pill-g">Blocked</span></div>
-      <div class="ccard-row"><span class="ccard-key">Memory</span><span class="ccard-pill pill-g">O(1)</span></div>
-      <div class="ccard-row"><span class="ccard-key">Accuracy</span><div class="stars"><div class="star" style="background:var(--c5)"></div><div class="star" style="background:var(--c5)"></div><div class="star" style="background:var(--c5)"></div><div class="star" style="background:var(--c5)"></div><div class="star" style="background:var(--surface3)"></div></div></div>
-      <div class="ccard-row"><span class="ccard-key">Complexity</span><span class="ccard-pill pill-g">Low</span></div>
-      <div class="ccard-row"><span class="ccard-key">Boundary burst</span><span class="ccard-pill pill-g">No</span></div>
-      <div class="ccard-row"><span class="ccard-key">Best for</span><span style="font-size:10px;color:var(--text2)">High-traffic APIs (Redis INCR pattern)</span></div>
-      <div class="pros-cons">
-        <div class="pro">✓ O(1) memory · Near-accurate · Atomic INCR · Scalable</div>
-        <div class="con">✗ ~5% error under skewed load · Assumes uniform distribution</div>
-      </div>
-    </div>
+        function changeTab(algId) {
+            // Stop current sim
+            if(activeSim) activeSim.stop();
 
-    <div class="ccard" style="background:var(--surface2)">
-      <div class="section-label" style="margin-bottom:12px">Senior architect pick</div>
-      <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:14px">
-        In production, layer multiple algorithms — each defends a different threat:
-      </div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <div style="display:flex;align-items:center;gap:8px;font-size:11px">
-          <span class="ccard-pill pill-b" style="flex-shrink:0">Edge / CDN</span>
-          <span style="color:var(--text2)">Token bucket — absorb DDoS bursts</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;font-size:11px">
-          <span class="ccard-pill pill-b" style="flex-shrink:0">API Gateway</span>
-          <span style="color:var(--text2)">Sliding window counter — per-key quota</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;font-size:11px">
-          <span class="ccard-pill pill-b" style="flex-shrink:0">Downstream</span>
-          <span style="color:var(--text2)">Leaky bucket — smooth outbound traffic</span>
-        </div>
-      </div>
-      <div style="margin-top:14px;padding:10px;background:var(--surface3);border-radius:7px;font-family:var(--mono);font-size:10px;color:var(--text3)">
-        # Redis patterns<br>
-        INCR key · EXPIRE key window   <span style="color:var(--c5)"># fixed / sliding counter</span><br>
-        ZADD key ts ts · ZRANGEBYSCORE  <span style="color:var(--c4)"># sliding log</span>
-      </div>
-    </div>
+            // Handle Compare Tab logic
+            if (algId === 'compare') {
+                document.getElementById('simulator-container').classList.add('hidden');
+                document.getElementById('doc-container').classList.add('hidden');
+                document.getElementById('comparison-container').classList.remove('hidden');
+                
+                // Remove active classes
+                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                return;
+            } else {
+                document.getElementById('simulator-container').classList.remove('hidden');
+                document.getElementById('doc-container').classList.remove('hidden');
+                document.getElementById('comparison-container').classList.add('hidden');
+            }
 
-  </div>
-</div>
+            currentAlg = algId;
+            
+            // Update Tab UI
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`tab-${algId}`).classList.add('active');
 
-</div><!-- /content -->
+            // Load Content
+            const data = contentData[algId];
+            docContainer.innerHTML = `
+                <div class="fade-in">
+                    <h2 class="text-3xl font-bold text-white mb-1">${data.title}</h2>
+                    <h3 class="text-blue-400 font-semibold mb-6">${data.subtitle}</h3>
+                    <div class="text-slate-200 leading-relaxed text-sm">
+                        <h4 class="text-lg font-bold text-white mb-2 border-b border-slate-700 pb-2">Algorithm Flow</h4>
+                        ${data.flow}
+                        <h4 class="text-lg font-bold text-white mt-8 mb-2 border-b border-slate-700 pb-2">Architecture Trade-offs</h4>
+                        ${data.prosCons}
+                    </div>
+                </div>
+            `;
 
-<script>
-// ── TAB SWITCHING ──
-function showTab(i) {
-  document.querySelectorAll('.tab').forEach((t,j) => t.classList.toggle('active', j===i));
-  document.querySelectorAll('.page').forEach((p,j) => {
-    p.classList.toggle('active', j===i);
-    p.style.display = (j===i) ? (i===5 ? 'block' : 'flex') : 'none';
-  });
-}
+            // Load Controls
+            dynamicControls.innerHTML = '';
+            data.controls.forEach(ctrl => {
+                dynamicControls.innerHTML += `
+                    <div>
+                        <div class="flex justify-between text-xs text-slate-400 mb-1">
+                            <label for="${ctrl.id}">${ctrl.label}</label>
+                            <span id="${ctrl.id}-val" class="font-bold text-white">${ctrl.val}</span>
+                        </div>
+                        <input type="range" id="${ctrl.id}" min="${ctrl.min}" max="${ctrl.max}" value="${ctrl.val}" 
+                            oninput="document.getElementById('${ctrl.id}-val').innerText = this.value; activeSim.updateConfig('${ctrl.id}', parseInt(this.value))">
+                    </div>
+                `;
+            });
 
-// ── LOG HELPERS ──
-const logEmpty = {};
-function clearLog(id) {
-  document.getElementById(id).innerHTML = '<div class="empty-log">// log cleared</div>';
-  logEmpty[id] = true;
-}
-function addLog(logId, msg, type, extra, accentColor) {
-  const log = document.getElementById(logId);
-  if (!logEmpty[logId] && log.querySelector('.empty-log')) log.innerHTML='';
-  logEmpty[logId] = false;
-  const t = new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  const e = document.createElement('div');
-  const colors = {
-    ok:    { bg:'rgba(61,219,168,0.1)', border:'rgba(61,219,168,0.2)', text:'var(--c1)' },
-    deny:  { bg:'var(--redb)',          border:'rgba(240,112,112,0.2)', text:'var(--red)' },
-    proc:  { bg:'rgba(91,143,249,0.1)', border:'rgba(91,143,249,0.2)', text:'var(--c2)' },
-    reset: { bg:'rgba(249,168,37,0.1)', border:'rgba(249,168,37,0.2)', text:'var(--c3)' },
-    prune: { bg:'var(--surface2)',       border:'var(--border)',        text:'var(--text3)' },
-  };
-  const c = colors[type] || colors.ok;
-  const labels = { ok:'ALLOW', deny:'DENY', proc:'PROC', reset:'RESET', prune:'PRUNE' };
-  e.className = 'le';
-  e.style.borderColor = c.border;
-  e.innerHTML = `<span class="lt">${t}</span><span class="lb" style="background:${c.bg};color:${c.text};border-color:${c.border}">${labels[type]||type}</span><span class="lm">${msg}</span>${extra ? `<span class="lx">${extra}</span>` : ''}`;
-  log.insertBefore(e, log.firstChild);
-  if (log.children.length > 300) log.removeChild(log.lastChild);
-}
+            // Reset Logs
+            requestLog.innerHTML = '';
+            statAccepted.innerText = '0';
+            statRejected.innerText = '0';
 
-// ═══════════════════════════════════════════
-// ALGO 1 — TOKEN BUCKET
-// ═══════════════════════════════════════════
-let tb = { cap:8, rate:2, tokens:8, allowed:0, denied:0, accum:0 };
-function tbUpdate() {
-  tb.cap  = +document.getElementById('tb-cap').value;
-  tb.rate = +document.getElementById('tb-rate').value;
-  document.getElementById('tb-cap-v').textContent  = tb.cap;
-  document.getElementById('tb-rate-v').textContent = tb.rate;
-  tb.tokens = Math.min(tb.tokens, tb.cap);
-  tbRender();
-}
-function tbRender() {
-  const c = document.getElementById('tb-tokens');
-  while(c.children.length < tb.cap) { const d=document.createElement('div'); d.className='tok off'; d.textContent='○'; c.appendChild(d); }
-  while(c.children.length > tb.cap) c.removeChild(c.lastChild);
-  for(let i=0;i<tb.cap;i++){
-    const d=c.children[i];
-    if(i<tb.tokens){ d.className='tok on'; d.style.background='rgba(61,219,168,0.15)'; d.style.borderColor='var(--c1)'; d.style.color='var(--c1)'; d.textContent='●'; }
-    else { d.className='tok off'; d.style.background=''; d.style.borderColor=''; d.style.color=''; d.textContent='○'; }
-  }
-  const pct = (tb.tokens/tb.cap)*100;
-  const bar = document.getElementById('tb-fill');
-  bar.style.width = pct+'%';
-  bar.style.background = pct<25 ? 'var(--red)' : pct<60 ? 'var(--c3)' : 'var(--c1)';
-  document.getElementById('tb-fill-lbl').textContent = tb.tokens+'/'+tb.cap;
-  document.getElementById('tb-s0').textContent = tb.tokens;
-  document.getElementById('tb-s1').textContent = tb.allowed;
-  document.getElementById('tb-s2').textContent = tb.denied;
-}
-function tbSend(n) {
-  for(let i=0;i<n;i++) setTimeout(()=>{
-    if(tb.tokens>0){ tb.tokens--; tb.allowed++; addLog('tb-log',`accepted — 1 token consumed`,'ok',tb.tokens+'t'); }
-    else { tb.denied++; const w=document.getElementById('tb-wrap'); w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake'); addLog('tb-log','rejected — bucket empty','deny',''); }
-    tbRender();
-  }, i*130);
-}
-setInterval(()=>{
-  tb.accum += tb.rate/10;
-  const add = Math.floor(tb.accum);
-  if(add>0 && tb.tokens<tb.cap){ tb.tokens=Math.min(tb.cap,tb.tokens+add); tb.accum-=add; tbRender(); }
-  const cyc = (tb.accum%1)*100;
-  document.getElementById('tb-refill').style.width = cyc+'%';
-},100);
-tbRender();
+            // Start new Simulation
+            resizeCanvas();
+            startSimulation(algId);
+        }
 
-// ═══════════════════════════════════════════
-// ALGO 2 — LEAKY BUCKET
-// ═══════════════════════════════════════════
-let lb = { cap:8, rate:2, queue:[], proc:0, drop:0, rid:0, drain:0 };
-function lbUpdate() {
-  lb.cap  = +document.getElementById('lb-cap').value;
-  lb.rate = +document.getElementById('lb-rate').value;
-  document.getElementById('lb-cap-v').textContent  = lb.cap;
-  document.getElementById('lb-rate-v').textContent = lb.rate;
-  lbRender();
-}
-function lbRender() {
-  const pct = (lb.queue.length/lb.cap)*100;
-  document.getElementById('lb-water').style.height = pct+'%';
-  document.getElementById('lb-water').style.background = pct>80 ? 'rgba(240,112,112,0.35)' : 'rgba(91,143,249,0.3)';
-  document.getElementById('lb-fill-pct').textContent = Math.round(pct)+'%';
-  const qd = document.getElementById('lb-qdots'); qd.innerHTML='';
-  lb.queue.forEach(id=>{ const d=document.createElement('div'); d.className='qdot'; d.style.background='rgba(91,143,249,0.2)'; d.style.border='1px solid rgba(91,143,249,0.4)'; d.style.color='var(--c2)'; d.style.fontSize='8px'; d.style.fontFamily='var(--mono)'; d.textContent=id; qd.appendChild(d); });
-  document.getElementById('lb-s0').textContent = lb.queue.length;
-  document.getElementById('lb-s1').textContent = lb.proc;
-  document.getElementById('lb-s2').textContent = lb.drop;
-}
-function lbSend(n) {
-  for(let i=0;i<n;i++) setTimeout(()=>{
-    lb.rid++;
-    if(lb.queue.length<lb.cap){ lb.queue.push(lb.rid%100); addLog('lb-log',`req #${lb.rid} enqueued — ${lb.queue.length}/${lb.cap}`,'ok',''); }
-    else { lb.drop++; addLog('lb-log',`req #${lb.rid} dropped — queue full`,'deny',''); }
-    lbRender();
-  }, i*100);
-}
-setInterval(()=>{
-  lb.drain = (lb.drain+lb.rate/5)%1;
-  document.getElementById('lb-drain').style.width=(lb.drain*100)+'%';
-  if(Math.random()<lb.rate/5 && lb.queue.length>0){
-    const id=lb.queue.shift(); lb.proc++;
-    addLog('lb-log',`req #${id} processed — queue ${lb.queue.length}/${lb.cap}`,'proc','');
-    lbRender();
-  }
-},200);
-lbRender();
+        function logRequest(status) {
+            const time = new Date().toISOString().split('T')[1].substring(0, 12);
+            const isAccepted = status === 'ACCEPTED';
+            const colorClass = isAccepted ? 'text-green-400' : 'text-red-400';
+            const dotClass = isAccepted ? 'status-accepted' : 'status-rejected';
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = 'flex items-center gap-2 py-1 border-b border-slate-800/50 fade-in';
+            logEntry.innerHTML = `<span class="status-dot ${dotClass}"></span> <span class="text-slate-500">[${time}]</span> <span class="${colorClass} font-bold">${status}</span>`;
+            
+            requestLog.prepend(logEntry);
+            if(requestLog.children.length > 20) requestLog.removeChild(requestLog.lastChild);
 
-// ═══════════════════════════════════════════
-// ALGO 3 — FIXED WINDOW COUNTER
-// ═══════════════════════════════════════════
-let fw = { lim:10, win:10, count:0, allowed:0, denied:0, rid:0, start:Date.now() };
-function fwUpdate() {
-  fw.lim = +document.getElementById('fw-lim').value;
-  fw.win = +document.getElementById('fw-win').value;
-  document.getElementById('fw-lim-v').textContent = fw.lim;
-  document.getElementById('fw-win-v').textContent = fw.win;
-  fwRender();
-}
-function fwRender() {
-  const pct = Math.min(100,(fw.count/fw.lim)*100);
-  const bar = document.getElementById('fw-bar');
-  bar.style.width = pct+'%';
-  bar.style.background = pct>=100 ? 'var(--red)' : pct>70 ? 'var(--c3)' : 'var(--c1d)';
-  document.getElementById('fw-bar-txt').textContent = Math.round(pct)+'%';
-  document.getElementById('fw-count-lbl').textContent = fw.count+'/'+fw.lim;
-  document.getElementById('fw-s0').textContent = fw.count;
-  document.getElementById('fw-s1').textContent = fw.allowed;
-  document.getElementById('fw-s2').textContent = fw.denied;
-  document.getElementById('fw-alert').style.display = pct>75 ? 'block' : 'none';
-}
-function fwSend(n) {
-  for(let i=0;i<n;i++) setTimeout(()=>{
-    fw.rid++;
-    if(fw.count<fw.lim){ fw.count++; fw.allowed++; addLog('fw-log',`req #${fw.rid} allowed — ${fw.count}/${fw.lim} this window`,'ok',''); }
-    else { fw.denied++; addLog('fw-log',`req #${fw.rid} denied — window limit reached`,'deny',''); }
-    fwRender();
-  }, i*80);
-}
-setInterval(()=>{
-  const elapsed=(Date.now()-fw.start)/1000, rem=fw.win-elapsed;
-  document.getElementById('fw-timer').style.width=(Math.max(0,rem/fw.win)*100)+'%';
-  document.getElementById('fw-cd').textContent=Math.max(0,rem).toFixed(1);
-  if(rem<=0){ fw.count=0; fw.start=Date.now(); addLog('fw-log','window reset — counter cleared','reset',''); fwRender(); }
-},100);
-fwRender();
+            // Update stats
+            if(isAccepted) {
+                statAccepted.innerText = parseInt(statAccepted.innerText) + 1;
+            } else {
+                statRejected.innerText = parseInt(statRejected.innerText) + 1;
+            }
+        }
 
-// ═══════════════════════════════════════════
-// ALGO 4 — SLIDING WINDOW LOG
-// ═══════════════════════════════════════════
-const TL_SECS=30;
-let sl = { lim:8, win:10, log:[], allowed:0, denied:0, rid:0 };
-function slUpdate() {
-  sl.lim = +document.getElementById('sl-lim').value;
-  sl.win = +document.getElementById('sl-win').value;
-  document.getElementById('sl-lim-v').textContent = sl.lim;
-  document.getElementById('sl-win-v').textContent = sl.win;
-}
-function slSend(n) {
-  for(let i=0;i<n;i++) setTimeout(()=>{
-    sl.rid++;
-    const now=Date.now(), cutoff=now-sl.win*1000;
-    const before=sl.log.length; sl.log=sl.log.filter(t=>t>cutoff);
-    const pruned=before-sl.log.length;
-    if(pruned>0) addLog('sl-log',`pruned ${pruned} expired entries`,'prune','');
-    if(sl.log.length<sl.lim){ sl.log.push(now); sl.allowed++; addLog('sl-log',`req #${sl.rid} allowed — ${sl.log.length}/${sl.lim} in window`,'ok',sl.log.length+'ts'); }
-    else { sl.denied++; addLog('sl-log',`req #${sl.rid} denied — ${sl.log.length}/${sl.lim} in window`,'deny',''); }
-  }, i*90);
-}
-setInterval(()=>{
-  const now=Date.now(), cutoff=now-sl.win*1000;
-  sl.log=sl.log.filter(t=>t>cutoff);
-  document.getElementById('sl-in-win-lbl').textContent = sl.log.length+' / '+sl.lim;
-  document.getElementById('sl-mem-bar').style.width = Math.min(100,(sl.log.length/Math.max(1,sl.lim))*100)+'%';
-  document.getElementById('sl-mem-count').textContent = sl.log.length;
-  document.getElementById('sl-s0').textContent = sl.log.length;
-  document.getElementById('sl-s1').textContent = sl.allowed;
-  document.getElementById('sl-s2').textContent = sl.denied;
-  const hl = document.getElementById('sl-tl-highlight');
-  const wf = sl.win/TL_SECS;
-  hl.style.left = ((1-wf)*100)+'%';
-  hl.style.width = (wf*100)+'%';
-  const dotsEl = document.getElementById('sl-tl-dots'); dotsEl.innerHTML='';
-  sl.log.forEach(ts=>{ const age=(now-ts)/1000, pos=1-(age/TL_SECS); if(pos>=0){ const d=document.createElement('div'); d.className='tl-dot'; d.style.left=(pos*100)+'%'; d.style.background='var(--c4)'; dotsEl.appendChild(d); } });
-},200);
+        // Setup Interaction
+        btnSendReq.addEventListener('click', () => { if(activeSim) activeSim.triggerRequest(true); });
+        autoTrafficToggle.addEventListener('change', (e) => { isAutoTraffic = e.target.checked; });
 
-// ═══════════════════════════════════════════
-// ALGO 5 — SLIDING WINDOW COUNTER
-// ═══════════════════════════════════════════
-let sc = { lim:10, win:10, prev:0, curr:0, allowed:0, denied:0, rid:0, start:Date.now() };
-function scUpdate() {
-  sc.lim = +document.getElementById('sc-lim').value;
-  sc.win = +document.getElementById('sc-win').value;
-  document.getElementById('sc-lim-v').textContent = sc.lim;
-  document.getElementById('sc-win-v').textContent = sc.win;
-}
-function scWeight() { return 1-Math.min(1,(Date.now()-sc.start)/(sc.win*1000)); }
-function scEst() { return sc.prev*scWeight()+sc.curr; }
-function scSend(n) {
-  for(let i=0;i<n;i++) setTimeout(()=>{
-    sc.rid++;
-    const est=scEst();
-    if(est<sc.lim){ sc.curr++; sc.allowed++; addLog('sc-log',`req #${sc.rid} allowed — est ${est.toFixed(1)}→${(est+1).toFixed(1)}/${sc.lim}`,'ok',''); }
-    else { sc.denied++; addLog('sc-log',`req #${sc.rid} denied — est ${est.toFixed(1)}/${sc.lim}`,'deny',''); }
-  }, i*80);
-}
-setInterval(()=>{
-  const rem=sc.win-((Date.now()-sc.start)/1000);
-  if(rem<=0){ sc.prev=sc.curr; sc.curr=0; sc.start=Date.now(); addLog('sc-log',`window rotated — prev=${sc.prev}, curr=0`,'reset',''); }
-  const w=scWeight(), est=scEst();
-  document.getElementById('sc-fp').textContent=sc.prev;
-  document.getElementById('sc-fw').textContent=w.toFixed(2);
-  document.getElementById('sc-fc').textContent=sc.curr;
-  document.getElementById('sc-fe').textContent=est.toFixed(1);
-  document.getElementById('sc-wd').textContent=w.toFixed(2);
-  document.getElementById('sc-cd').textContent=Math.max(0,rem).toFixed(1);
-  document.getElementById('sc-timer').style.width=(Math.max(0,rem/sc.win)*100)+'%';
-  document.getElementById('sc-s0').textContent=est.toFixed(1);
-  document.getElementById('sc-s1').textContent=sc.allowed;
-  document.getElementById('sc-s2').textContent=sc.denied;
-  const tot=sc.prev+sc.curr||1;
-  const mx=Math.max(tot,sc.lim);
-  const pb=document.getElementById('sc-prev-bar'), cb=document.getElementById('sc-curr-bar');
-  pb.style.width=((sc.prev/mx)*100)+'%'; pb.textContent=sc.prev||'';
-  cb.style.width=((sc.curr/mx)*100)+'%'; cb.textContent=sc.curr||'';
-},100);
-</script>
+        // ==========================================
+        // SIMULATION ENGINE (Canvas)
+        // ==========================================
+        
+        // Base Class
+        class RateLimiterSim {
+            constructor() {
+                this.running = false;
+                this.lastTime = performance.now();
+                this.particles = []; // Visual requests
+                this.cfg = {};
+            }
+            start() {
+                this.running = true;
+                this.lastTime = performance.now();
+                requestAnimationFrame((t) => this.loop(t));
+            }
+            stop() { this.running = false; }
+            onResize(w, h) { this.width = w; this.height = h; }
+            
+            loop(timestamp) {
+                if(!this.running) return;
+                const dt = (timestamp - this.lastTime) / 1000; // seconds
+                this.lastTime = timestamp;
+
+                ctx.clearRect(0, 0, this.width, this.height);
+                this.update(dt);
+                this.draw(ctx);
+                
+                requestAnimationFrame((t) => this.loop(t));
+            }
+
+            updateConfig(id, val) { this.cfg[id] = val; }
+            
+            triggerRequest(manual = false) {
+                const status = this.processRequest();
+                logRequest(status ? 'ACCEPTED' : 'REJECTED');
+                this.spawnParticle(status);
+            }
+
+            spawnParticle(accepted) {
+                // To be overridden
+            }
+        }
+
+        // 1. Token Bucket Simulation
+        class TokenBucketSim extends RateLimiterSim {
+            constructor() {
+                super();
+                this.tokens = 10;
+                this.cfg = { 'tb-capacity': 10, 'tb-refill': 3, 'tb-traffic': 5 };
+                this.timeSinceLastReq = 0;
+            }
+            
+            update(dt) {
+                // Refill tokens
+                this.tokens = Math.min(this.cfg['tb-capacity'], this.tokens + this.cfg['tb-refill'] * dt);
+
+                // Auto traffic
+                if(isAutoTraffic) {
+                    this.timeSinceLastReq += dt;
+                    const reqInterval = 1 / this.cfg['tb-traffic'];
+                    if(this.timeSinceLastReq >= reqInterval) {
+                        this.triggerRequest();
+                        this.timeSinceLastReq = 0;
+                    }
+                }
+
+                // Update particles
+                for(let i=this.particles.length-1; i>=0; i--) {
+                    let p = this.particles[i];
+                    p.y += p.vy * dt;
+                    if(p.y > this.height) this.particles.splice(i, 1);
+                }
+            }
+
+            processRequest() {
+                if(this.tokens >= 1) {
+                    this.tokens -= 1;
+                    return true;
+                }
+                return false;
+            }
+
+            spawnParticle(accepted) {
+                this.particles.push({
+                    x: this.width/2 + (Math.random()*40 - 20),
+                    y: 0,
+                    vy: 300,
+                    accepted: accepted
+                });
+            }
+
+            draw(ctx) {
+                const cx = this.width / 2;
+                const cy = this.height / 2 + 50;
+                const bWidth = 140;
+                const bHeight = 200;
+                const cap = this.cfg['tb-capacity'];
+
+                // Draw Bucket
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(cx - bWidth/2, cy - bHeight);
+                ctx.lineTo(cx - bWidth/2, cy);
+                ctx.lineTo(cx + bWidth/2, cy);
+                ctx.lineTo(cx + bWidth/2, cy - bHeight);
+                ctx.stroke();
+                
+                // Draw fill level line
+                ctx.setLineDash([5, 5]);
+                ctx.strokeStyle = '#475569';
+                ctx.beginPath();
+                ctx.moveTo(cx - bWidth/2 - 20, cy - bHeight);
+                ctx.lineTo(cx + bWidth/2 + 20, cy - bHeight);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '12px Inter';
+                ctx.fillText(`Capacity: ${cap}`, cx + bWidth/2 + 30, cy - bHeight + 4);
+
+                // Draw Tokens (as circles)
+                const numTokens = Math.floor(this.tokens);
+                const cols = 4;
+                const radius = 10;
+                const padding = 28;
+                
+                ctx.fillStyle = '#f59e0b'; // amber-500
+                for(let i=0; i<numTokens; i++) {
+                    const row = Math.floor(i / cols);
+                    const col = i % cols;
+                    const tx = (cx - bWidth/2) + 25 + col * padding;
+                    const ty = cy - 20 - row * padding;
+                    
+                    ctx.beginPath();
+                    ctx.arc(tx, ty, radius, 0, Math.PI*2);
+                    ctx.fill();
+                    // Glow
+                    ctx.shadowColor = '#f59e0b';
+                    ctx.shadowBlur = 10;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+
+                // Info Text
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 16px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${this.tokens.toFixed(1)} Tokens Available`, cx, cy + 30);
+                
+                // Draw Particles (Requests)
+                this.particles.forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 6, 0, Math.PI*2);
+                    ctx.fillStyle = p.accepted ? '#22c55e' : '#ef4444';
+                    ctx.fill();
+                    if(!p.accepted && p.y > cy - bHeight) {
+                        // Deflect rejected
+                        p.x += (p.x > cx ? 1 : -1) * 5;
+                    }
+                });
+            }
+        }
+
+        // 2. Leaky Bucket Simulation
+        class LeakyBucketSim extends RateLimiterSim {
+            constructor() {
+                super();
+                this.queue = 0;
+                this.cfg = { 'lb-capacity': 10, 'lb-leak': 2, 'lb-traffic': 4 };
+                this.timeSinceLastReq = 0;
+                this.timeSinceLastLeak = 0;
+                this.processedParticles = [];
+            }
+            
+            update(dt) {
+                // Auto traffic
+                if(isAutoTraffic) {
+                    this.timeSinceLastReq += dt;
+                    const reqInterval = 1 / this.cfg['lb-traffic'];
+                    if(this.timeSinceLastReq >= reqInterval) {
+                        this.triggerRequest();
+                        this.timeSinceLastReq = 0;
+                    }
+                }
+
+                // Leak (Process)
+                this.timeSinceLastLeak += dt;
+                const leakInterval = 1 / this.cfg['lb-leak'];
+                if(this.timeSinceLastLeak >= leakInterval) {
+                    if(this.queue > 0) {
+                        this.queue--;
+                        this.spawnProcessed();
+                    }
+                    this.timeSinceLastLeak = 0;
+                }
+
+                // Update particles
+                for(let i=this.particles.length-1; i>=0; i--) {
+                    let p = this.particles[i];
+                    p.y += p.vy * dt;
+                    if(p.y > this.height) this.particles.splice(i, 1);
+                }
+                for(let i=this.processedParticles.length-1; i>=0; i--) {
+                    let p = this.processedParticles[i];
+                    p.y += p.vy * dt;
+                    if(p.y > this.height) this.processedParticles.splice(i, 1);
+                }
+            }
+
+            processRequest() {
+                if(this.queue < this.cfg['lb-capacity']) {
+                    this.queue++;
+                    return true;
+                }
+                return false; // Queue full
+            }
+
+            spawnParticle(accepted) {
+                this.particles.push({
+                    x: this.width/2 + (Math.random()*20 - 10),
+                    y: 0,
+                    vy: 200,
+                    accepted: accepted
+                });
+            }
+            
+            spawnProcessed() {
+                this.processedParticles.push({
+                    x: this.width/2,
+                    y: this.height/2 + 60,
+                    vy: 150
+                });
+            }
+
+            draw(ctx) {
+                const cx = this.width / 2;
+                const cy = this.height / 2;
+                const topW = 160;
+                const botW = 40;
+                const h = 120;
+                const cap = this.cfg['lb-capacity'];
+
+                // Draw Funnel
+                ctx.strokeStyle = '#14b8a6'; // teal-500
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(cx - topW/2, cy - h/2);
+                ctx.lineTo(cx - botW/2, cy + h/2);
+                ctx.lineTo(cx - botW/2, cy + h/2 + 40); // Spout
+                ctx.moveTo(cx + topW/2, cy - h/2);
+                ctx.lineTo(cx + botW/2, cy + h/2);
+                ctx.lineTo(cx + botW/2, cy + h/2 + 40);
+                ctx.stroke();
+
+                // Draw Water (Queue Level)
+                if (this.queue > 0) {
+                    const fillRatio = this.queue / cap;
+                    const fillH = h * fillRatio;
+                    // Interpolate width based on height
+                    const currentTopW = botW + (topW - botW) * fillRatio;
+                    
+                    ctx.fillStyle = 'rgba(20, 184, 166, 0.4)';
+                    ctx.beginPath();
+                    ctx.moveTo(cx - botW/2, cy + h/2);
+                    ctx.lineTo(cx + botW/2, cy + h/2);
+                    ctx.lineTo(cx + currentTopW/2, cy + h/2 - fillH);
+                    ctx.lineTo(cx - currentTopW/2, cy + h/2 - fillH);
+                    ctx.fill();
+                }
+
+                // Texts
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 16px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Queue: ${this.queue} / ${cap}`, cx, cy - h/2 - 20);
+
+                // Particles (Incoming)
+                this.particles.forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 6, 0, Math.PI*2);
+                    ctx.fillStyle = p.accepted ? '#22c55e' : '#ef4444';
+                    ctx.fill();
+                    
+                    // Bounce rejected particles
+                    if(!p.accepted && p.y > cy - h/2) {
+                        p.x += (p.x > cx ? 1 : -1) * 3;
+                        p.y -= p.vy * 0.016; // rough dt
+                    } else if (p.accepted && p.y > cy - h/2 + 20) {
+                        // Hide accepted once inside funnel
+                        p.y = this.height + 100; 
+                    }
+                });
+
+                // Particles (Outgoing/Processed)
+                ctx.fillStyle = '#3b82f6';
+                this.processedParticles.forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 5, 0, Math.PI*2);
+                    ctx.fill();
+                });
+            }
+        }
+
+        // 3. Fixed Window Simulation
+        class FixedWindowSim extends RateLimiterSim {
+            constructor() {
+                super();
+                this.counter = 0;
+                this.cfg = { 'fw-limit': 5, 'fw-window': 4, 'fw-traffic': 2 };
+                this.windowTimer = 0;
+                this.timeSinceLastReq = 0;
+                this.reqHistory = []; // For visual timeline
+            }
+
+            update(dt) {
+                this.windowTimer += dt;
+                
+                // Reset Window
+                if (this.windowTimer >= this.cfg['fw-window']) {
+                    this.windowTimer = 0;
+                    this.counter = 0;
+                }
+
+                // Auto traffic
+                if(isAutoTraffic) {
+                    this.timeSinceLastReq += dt;
+                    const reqInterval = 1 / this.cfg['fw-traffic'];
+                    if(this.timeSinceLastReq >= reqInterval) {
+                        this.triggerRequest();
+                        this.timeSinceLastReq = 0;
+                    }
+                }
+
+                // Move history timeline
+                const speed = 100; // pixels per second
+                for(let i=this.reqHistory.length-1; i>=0; i--) {
+                    this.reqHistory[i].x -= speed * dt;
+                    if(this.reqHistory[i].x < -50) this.reqHistory.splice(i, 1);
+                }
+            }
+
+            processRequest() {
+                if(this.counter < this.cfg['fw-limit']) {
+                    this.counter++;
+                    return true;
+                }
+                return false;
+            }
+
+            spawnParticle(accepted) {
+                // Spawn on timeline at right edge
+                this.reqHistory.push({
+                    x: this.width - 50,
+                    y: this.height/2,
+                    accepted: accepted
+                });
+            }
+
+            draw(ctx) {
+                const cx = this.width / 2;
+                const cy = this.height / 2;
+                const winSize = this.cfg['fw-window'];
+                const limit = this.cfg['fw-limit'];
+                const speed = 100;
+
+                // Draw Timeline base
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, cy);
+                ctx.lineTo(this.width, cy);
+                ctx.stroke();
+
+                // Draw current window boundary block
+                const blockWidth = winSize * speed;
+                // Position shifts left as timer increases
+                const currentBlockX = this.width - 50 - (this.windowTimer * speed);
+
+                // Background highlight for current window
+                ctx.fillStyle = this.counter >= limit ? 'rgba(239, 68, 68, 0.1)' : 'rgba(234, 179, 8, 0.1)';
+                ctx.fillRect(currentBlockX, cy - 40, blockWidth, 80);
+
+                // Vertical dividers
+                ctx.strokeStyle = '#eab308'; // yellow-500
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(currentBlockX, cy - 60);
+                ctx.lineTo(currentBlockX, cy + 60);
+                ctx.moveTo(currentBlockX + blockWidth, cy - 60);
+                ctx.lineTo(currentBlockX + blockWidth, cy + 60);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Text stats
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 18px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Count: ${this.counter} / ${limit}`, this.width/2, cy - 80);
+                
+                // Timer progress bar
+                ctx.fillStyle = '#475569';
+                ctx.fillRect(this.width/2 - 100, cy + 80, 200, 6);
+                ctx.fillStyle = '#eab308';
+                ctx.fillRect(this.width/2 - 100, cy + 80, 200 * (this.windowTimer/winSize), 6);
+                ctx.font = '12px Inter';
+                ctx.fillText(`Window Reset: ${(winSize - this.windowTimer).toFixed(1)}s`, this.width/2, cy + 105);
+
+                // Draw requests on timeline
+                this.reqHistory.forEach(req => {
+                    ctx.beginPath();
+                    ctx.arc(req.x, req.y, 8, 0, Math.PI*2);
+                    ctx.fillStyle = req.accepted ? '#22c55e' : '#ef4444';
+                    ctx.fill();
+                    ctx.strokeStyle = '#0f172a';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                });
+            }
+        }
+
+        // 4. Sliding Window Log Simulation
+        class SlidingLogSim extends RateLimiterSim {
+            constructor() {
+                super();
+                this.log = []; // Stores relative timestamps
+                this.cfg = { 'sl-limit': 5, 'sl-window': 5, 'sl-traffic': 3 };
+                this.timeSinceLastReq = 0;
+                this.globalTime = 0;
+                this.visualReqs = [];
+            }
+
+            update(dt) {
+                this.globalTime += dt;
+                
+                // Auto traffic
+                if(isAutoTraffic) {
+                    this.timeSinceLastReq += dt;
+                    const reqInterval = 1 / this.cfg['sl-traffic'];
+                    if(this.timeSinceLastReq >= reqInterval) {
+                        this.triggerRequest();
+                        this.timeSinceLastReq = 0;
+                    }
+                }
+
+                // Clean old logs
+                const winSize = this.cfg['sl-window'];
+                this.log = this.log.filter(t => this.globalTime - t <= winSize);
+
+                // Move visual timeline
+                const speed = 80; 
+                for(let i=this.visualReqs.length-1; i>=0; i--) {
+                    this.visualReqs[i].x -= speed * dt;
+                    if(this.visualReqs[i].x < -50) this.visualReqs.splice(i, 1);
+                }
+            }
+
+            processRequest() {
+                const limit = this.cfg['sl-limit'];
+                if(this.log.length < limit) {
+                    this.log.push(this.globalTime);
+                    return true;
+                }
+                return false;
+            }
+
+            spawnParticle(accepted) {
+                // Fixed spawn point
+                this.visualReqs.push({
+                    x: this.width - 100,
+                    y: this.height/2,
+                    accepted: accepted
+                });
+            }
+
+            draw(ctx) {
+                const cy = this.height / 2;
+                const winSize = this.cfg['sl-window'];
+                const limit = this.cfg['sl-limit'];
+                const speed = 80;
+                
+                // Draw Timeline base
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, cy);
+                ctx.lineTo(this.width, cy);
+                ctx.stroke();
+
+                // Draw Sliding Window Box (Fixed in center)
+                // The dots move through it
+                const blockWidth = winSize * speed;
+                const startX = this.width - 100 - blockWidth;
+                
+                ctx.fillStyle = this.log.length >= limit ? 'rgba(239, 68, 68, 0.1)' : 'rgba(168, 85, 247, 0.1)'; // purple-500
+                ctx.fillRect(startX, cy - 30, blockWidth, 60);
+                ctx.strokeStyle = '#a855f7';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(startX, cy - 30, blockWidth, 60);
+
+                ctx.fillStyle = '#a855f7';
+                ctx.font = '12px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Sliding Window (${winSize}s)`, startX + blockWidth/2, cy + 45);
+
+                // Stats
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 18px Inter';
+                ctx.fillText(`Logs in Window: ${this.log.length} / ${limit}`, this.width/2, cy - 60);
+
+                // Draw Memory Array Box (Conceptual)
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(20, 20, 200, Math.max(60, this.log.length * 20 + 30));
+                ctx.strokeStyle = '#475569';
+                ctx.strokeRect(20, 20, 200, Math.max(60, this.log.length * 20 + 30));
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '12px JetBrains Mono';
+                ctx.textAlign = 'left';
+                ctx.fillText('Memory Log [ ]', 30, 40);
+                this.log.forEach((t, i) => {
+                    ctx.fillText(`t-${(this.globalTime - t).toFixed(2)}s`, 30, 60 + i*20);
+                });
+
+                // Draw visual dots
+                this.visualReqs.forEach(req => {
+                    ctx.beginPath();
+                    ctx.arc(req.x, req.y, 8, 0, Math.PI*2);
+                    ctx.fillStyle = req.accepted ? '#22c55e' : '#ef4444';
+                    ctx.fill();
+                    ctx.strokeStyle = '#0f172a';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                });
+            }
+        }
+
+        // 5. Sliding Window Counter Simulation
+        class SlidingCounterSim extends RateLimiterSim {
+            constructor() {
+                super();
+                this.prevCount = 0;
+                this.currCount = 0;
+                this.cfg = { 'sc-limit': 10, 'sc-window': 4, 'sc-traffic': 5 };
+                this.windowTimer = 0;
+                this.timeSinceLastReq = 0;
+                this.particles = [];
+            }
+
+            update(dt) {
+                this.windowTimer += dt;
+                
+                // Shift windows
+                if (this.windowTimer >= this.cfg['sc-window']) {
+                    this.prevCount = this.currCount;
+                    this.currCount = 0;
+                    this.windowTimer = 0;
+                }
+
+                if(isAutoTraffic) {
+                    this.timeSinceLastReq += dt;
+                    const reqInterval = 1 / this.cfg['sc-traffic'];
+                    if(this.timeSinceLastReq >= reqInterval) {
+                        this.triggerRequest();
+                        this.timeSinceLastReq = 0;
+                    }
+                }
+
+                // Update particles
+                for(let i=this.particles.length-1; i>=0; i--) {
+                    let p = this.particles[i];
+                    p.x -= 100 * dt; // move left
+                    p.y += Math.sin(p.x * 0.05) * 2; // slight wave
+                    if(p.x < 0) this.particles.splice(i, 1);
+                }
+            }
+
+            getEstCount() {
+                const weight = this.windowTimer / this.cfg['sc-window'];
+                return (this.prevCount * (1 - weight)) + this.currCount;
+            }
+
+            processRequest() {
+                const limit = this.cfg['sc-limit'];
+                if(this.getEstCount() < limit) {
+                    this.currCount++;
+                    return true;
+                }
+                return false;
+            }
+
+            spawnParticle(accepted) {
+                this.particles.push({
+                    x: this.width - 50,
+                    y: this.height/2 + 60,
+                    accepted: accepted
+                });
+            }
+
+            draw(ctx) {
+                const cx = this.width / 2;
+                const cy = this.height / 2;
+                const limit = this.cfg['sc-limit'];
+                const winSize = this.cfg['sc-window'];
+                const estCount = this.getEstCount();
+                const overlap = this.windowTimer / winSize;
+
+                // Draw Bar Chart Container
+                const barWidth = 100;
+                const maxH = 150;
+                
+                // Scale factor for bars
+                const scale = maxH / Math.max(limit, this.prevCount, this.currCount, estCount, 1);
+
+                // Draw Limit Line
+                ctx.strokeStyle = '#ef4444';
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(cx - 150, cy - 20 - (limit * scale));
+                ctx.lineTo(cx + 150, cy - 20 - (limit * scale));
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#ef4444';
+                ctx.font = '12px Inter';
+                ctx.textAlign = 'left';
+                ctx.fillText(`Limit (${limit})`, cx + 160, cy - 20 - (limit * scale) + 4);
+
+                // Prev Bar
+                const pBarH = this.prevCount * scale;
+                ctx.fillStyle = '#475569';
+                ctx.fillRect(cx - 120, cy - 20 - pBarH, barWidth, pBarH);
+                ctx.fillStyle = '#fff';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.prevCount, cx - 120 + barWidth/2, cy - 30 - pBarH);
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillText('Prev Window', cx - 120 + barWidth/2, cy);
+
+                // Curr Bar
+                const cBarH = this.currCount * scale;
+                ctx.fillStyle = '#3b82f6';
+                ctx.fillRect(cx + 20, cy - 20 - cBarH, barWidth, cBarH);
+                ctx.fillStyle = '#fff';
+                ctx.fillText(this.currCount, cx + 20 + barWidth/2, cy - 30 - cBarH);
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillText('Curr Window', cx + 20 + barWidth/2, cy);
+
+                // Interpolation visualization
+                // Highlight the portion of prev window that counts
+                const pActiveH = pBarH * (1 - overlap);
+                ctx.fillStyle = 'rgba(236, 72, 153, 0.5)'; // pink-500
+                ctx.fillRect(cx - 120, cy - 20 - pActiveH, barWidth, pActiveH);
+                
+                // Highlight current window fully
+                ctx.fillStyle = 'rgba(236, 72, 153, 0.5)';
+                ctx.fillRect(cx + 20, cy - 20 - cBarH, barWidth, cBarH);
+
+                // Math Equation Box
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = '#ec4899';
+                ctx.lineWidth = 1;
+                ctx.fillRect(cx - 180, cy + 40, 360, 60);
+                ctx.strokeRect(cx - 180, cy + 40, 360, 60);
+                
+                ctx.fillStyle = '#ec4899';
+                ctx.font = 'bold 14px JetBrains Mono';
+                const eqText = `${this.prevCount} × ${(1-overlap).toFixed(2)} + ${this.currCount} = ${estCount.toFixed(1)}`;
+                ctx.fillText(`Est Traffic = ${eqText}`, cx, cy + 75);
+
+                // Timer progress
+                ctx.fillStyle = '#334155';
+                ctx.fillRect(cx - 180, cy + 110, 360, 4);
+                ctx.fillStyle = '#3b82f6';
+                ctx.fillRect(cx - 180, cy + 110, 360 * overlap, 4);
+
+                // Draw Particles
+                this.particles.forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y + 70, 6, 0, Math.PI*2);
+                    ctx.fillStyle = p.accepted ? '#22c55e' : '#ef4444';
+                    ctx.fill();
+                });
+            }
+        }
+
+        // ==========================================
+        // INITIALIZATION
+        // ==========================================
+        function startSimulation(algId) {
+            switch(algId) {
+                case 'token-bucket': activeSim = new TokenBucketSim(); break;
+                case 'leaky-bucket': activeSim = new LeakyBucketSim(); break;
+                case 'fixed-window': activeSim = new FixedWindowSim(); break;
+                case 'sliding-log': activeSim = new SlidingLogSim(); break;
+                case 'sliding-counter': activeSim = new SlidingCounterSim(); break;
+            }
+            if(activeSim) {
+                activeSim.onResize(canvas.width, canvas.height);
+                activeSim.start();
+            }
+        }
+
+        // Start Default
+        window.onload = () => {
+            changeTab('token-bucket');
+        };
+
+    </script>
 </body>
 </html>
